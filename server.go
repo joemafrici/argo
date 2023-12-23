@@ -8,26 +8,27 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type UserConnection struct {
-	UserID    string
-	WebSocket *websocket.Conn
-}
+// type UserConnection struct {
+// 	Username    string
+// 	WebSocket *websocket.Conn
+// }
 
-var userConnections []UserConnection
+//var userConnections []UserConnection
+var clients = make(map[string]*websocket.Conn, 0)
 
 const timeoutDuration = 5
 
 // ***********************************************
 func main() {
 	port := ":3000"
-	http.HandleFunc("/", handler)
+	http.HandleFunc("/ws", handler)
 	log.Println("server listening on port", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
 
 // ***********************************************
 func handler(w http.ResponseWriter, r *http.Request) {
-	log.Println("received request from", r.Host)
+	log.Println("received request from", r.URL.Query().Get("username"), r.Host)
 
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -41,11 +42,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	var usrConn UserConnection = UserConnection{
-		UserID:    "user1",
-		WebSocket: conn,
-	}
-	userConnections = append(userConnections, usrConn)
+	username := r.URL.Query().Get("username")
+	clients[username] = conn
 	for {
 		messageType, p, err := conn.ReadMessage()
 		if err != nil {
@@ -58,10 +56,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Println(string(p))
-		response := fmt.Sprintf("hello there %v", len(userConnections))
-		for _, wsconn := range userConnections {
-			wsconn.WebSocket.WriteMessage(messageType, []byte(response))
-		}
+		response := fmt.Sprintf("hello there %v", len(clients))
+		clients[username].WriteMessage(messageType, []byte(response))
 	}
 	closeConnection(conn)
 }
