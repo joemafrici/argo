@@ -1,5 +1,10 @@
 function sendMessage() {
-	const message = document.querySelector("#messageInput").value;
+	const content = document.querySelector('#messageInput').value;
+    const recipient = document.querySelector('#recipient').value;
+    const message = JSON.stringify({
+        recipient: recipient,
+        content: content,
+    });
 	socket.send(message);
 }
 function closeConnection() {

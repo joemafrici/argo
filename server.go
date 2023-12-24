@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,10 @@ import (
 // 	Username    string
 // 	WebSocket *websocket.Conn
 // }
+type Message struct {
+	Recipient string `json:"recipient"`
+	Content string `json:"content"`
+}
 
 //var userConnections []UserConnection
 var clients = make(map[string]*websocket.Conn, 0)
@@ -51,13 +56,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 				log.Println("connection closed:", err)
 				break
 			} else {
-				log.Println(err)
+				log.Println("ReadMessage:", err)
 			}
 			return
 		}
-		log.Println(string(p))
-		response := fmt.Sprintf("hello there %v", len(clients))
+
+		var msg Message
+		if err := json.Unmarshal(p, &msg); err != nil {
+			log.Println("Unmarshal", err)
+		}
+		response := fmt.Sprintf("message sent to %v", msg.Recipient)
 		clients[username].WriteMessage(messageType, []byte(response))
+		clients[msg.Recipient].WriteMessage(messageType, []byte(msg.Content))
 	}
 	closeConnection(conn)
 }
