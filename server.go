@@ -25,7 +25,7 @@ const timeoutDuration = 5
 
 // ***********************************************
 func main() {
-	port := ":3000"
+	port := ":3001"
 	http.HandleFunc("/ws", handler)
 	log.Println("server listening on port", port)
 	log.Fatal(http.ListenAndServe(port, nil))
