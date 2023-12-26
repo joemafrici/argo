@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import Login from './Login'
 import './App.css'
 
 function Message({ content }: { content: string }) {
@@ -6,37 +7,40 @@ function Message({ content }: { content: string }) {
     <li>{content}</li>
   );
 }
+type conversation = {
+  id: string;
+  content: string;
+}
 
-type LoginProps = {
-  onLogin: (username: string) => void;
-};
+const Chat: React.FC = () => {
+  const chatHistory: conversation[] = [
+    {id: '1', content: 'hello socrates'},
+    {id: '2', content: 'hello deepwater'},
+    {id: '3', content: 'shall we go down to the Piraeus'},
+    {id: '4', content: 'yes... lead the way'},
+  ];
+  const messages = chatHistory.map(message => 
+    <li key={message.id}>
+      <p>{message.content}</p>
+    </li>
+  );
 
-const Login: React.FC<LoginProps> = ({ onLogin }) => {
-  const [username, setUsername] = useState('');
-
-  const handleSubmit = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (username) {
-      onLogin(username);
-    }
-
-  }
-  return (
-    <form onSubmit={handleSubmit}>
-      <input type='text' value={username} 
-        onChange={e => setUsername(e.target.value)}
-        placeholder='Enter username'/>
-      <button type='submit'>Login</button>
-    </form>
+  return(
+    <section>
+      <h1>Conversation</h1>
+      <ul>{messages}</ul>
+    </section>
   );
 }
 
 function App() {
   const [username, setUsername] = useState('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [renderLogin, setRenderLogin] = useState(true);
 
   const handleLogin = (username: string) => {
     setUsername(username);
+    setRenderLogin(false);
   }
 
   useEffect(() => {
@@ -66,13 +70,15 @@ function App() {
     }
 
     return () => {
-
+      socket?.close();
+      //setRenderLogin(true);
     }
   }, [username]);
 
   return (
     <>
-      <Login onLogin={handleLogin}/>
+      { renderLogin && <Login onLogin={handleLogin}/> }
+      <Chat />
       <ul>
         <Message content='hello socrates' />
         <Message content='hello deepwater' />
