@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-type conversation = {
+export type Message = {
   id: string;
   to: string;
   from: string;
@@ -13,15 +13,9 @@ interface ChatProps {
 }
 
 const Chat: React.FC<ChatProps> = ( { socket, username }) => {
-  const [message, setMessage] = useState("");
+  const [messageState, setMessageState] = useState("");
   const [to, setTo] = useState("");
-  const [history, setHistory] = useState<conversation[]>([]);
-  const chatHistory: conversation[] = [
-    {id: '1', to: 'socrates', from: 'deepwater', content: 'hello socrates'},
-    {id: '2', to: 'deepwater', from: 'socrates', content: 'hello deepwater'},
-    {id: '3', to: 'socrates', from: 'deepwater', content: 'shall we go down to the Piraeus'},
-    {id: '4', to: 'deepwater', from: 'socrates', content: 'yes... lead the way'},
-  ];
+  const [history, setHistory] = useState<Message[]>([]);
   const messagesUI = history.map(message => 
     <li key={message.id}>
       <p>{message.content}</p>
@@ -30,11 +24,11 @@ const Chat: React.FC<ChatProps> = ( { socket, username }) => {
 
   const sendMessage = () => {
     if (socket) {
-      const messageToSend: conversation = {
+      const messageToSend: Message = {
         id: crypto.randomUUID(),
         to: to,
         from: username,
-        content: message,
+        content: messageState,
       };
       socket?.send(JSON.stringify(messageToSend));
     }
@@ -56,7 +50,7 @@ const Chat: React.FC<ChatProps> = ( { socket, username }) => {
       <input type='text' placeholder='person to chat with' onChange={e => setTo(e.target.value)}></input>
       <ul>{messagesUI}</ul>
       <section>
-        <textarea rows={5} cols={10} onChange={e => setMessage(e.target.value)} />
+        <textarea rows={5} cols={10} onChange={e => setMessageState(e.target.value)} />
         <button onClick={sendMessage}>Send</button>
       </section>
     </section>

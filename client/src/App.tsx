@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react'
 import Login from './Login'
+import { Message } from './Chat'
 import Chat from './Chat'
+import ChatList from './ChatList'
 import './App.css'
 
+type Conversations = {
+  [id: string]: Message[]
+}
+
 function App() {
+  const [conversations, setConversations] = useState<Conversations>({});
   const [username, setUsername] = useState('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [renderLogin, setRenderLogin] = useState(true);
@@ -11,6 +18,16 @@ function App() {
   const handleLogin = (username: string) => {
     setUsername(username);
     setRenderLogin(false);
+  }
+  const addMessageToConversation = (conversationID: string, message: Message) => {
+    setConversations(prevConversations => {
+      const updatedConversations = { ...prevConversations };
+      if (!updatedConversations[conversationID]) {
+        updatedConversations[conversationID] = [];
+      }
+      updatedConversations[conversationID].push(message);
+      return updatedConversations;
+    });
   }
 
   useEffect(() => {
@@ -48,6 +65,7 @@ function App() {
   return (
     <>
       { renderLogin && <Login onLogin={handleLogin}/> }
+      <ChatList />
       <Chat socket={socket} username={username}/>
     </>
   )
