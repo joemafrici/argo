@@ -1,37 +1,7 @@
 import { useState, useEffect } from 'react'
 import Login from './Login'
+import Chat from './Chat'
 import './App.css'
-
-function Message({ content }: { content: string }) {
-  return (
-    <li>{content}</li>
-  );
-}
-type conversation = {
-  id: string;
-  content: string;
-}
-
-const Chat: React.FC = () => {
-  const chatHistory: conversation[] = [
-    {id: '1', content: 'hello socrates'},
-    {id: '2', content: 'hello deepwater'},
-    {id: '3', content: 'shall we go down to the Piraeus'},
-    {id: '4', content: 'yes... lead the way'},
-  ];
-  const messages = chatHistory.map(message => 
-    <li key={message.id}>
-      <p>{message.content}</p>
-    </li>
-  );
-
-  return(
-    <section>
-      <h1>Conversation</h1>
-      <ul>{messages}</ul>
-    </section>
-  );
-}
 
 function App() {
   const [username, setUsername] = useState('');
@@ -58,10 +28,10 @@ function App() {
           console.log("connection died");
         }
       };
-      socket.onmessage = (event: MessageEvent) => {
-        console.log(event.data);
-        //setResponses((prev) => [...prev, event.data]);
-      };
+      // socket.onmessage = (event: MessageEvent) => {
+      //   console.log(event.data);
+      //   setResponses((prev) => [...prev, event.data]);
+      // };
       socket.onerror = (event: Event) => {
         console.error("Websocket Error:", event);
       };
@@ -78,11 +48,7 @@ function App() {
   return (
     <>
       { renderLogin && <Login onLogin={handleLogin}/> }
-      <Chat />
-      <ul>
-        <Message content='hello socrates' />
-        <Message content='hello deepwater' />
-      </ul>
+      <Chat socket={socket} username={username}/>
     </>
   )
 }

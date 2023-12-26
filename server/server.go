@@ -2,11 +2,11 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/google/uuid"
 )
 
 // type UserConnection struct {
@@ -14,7 +14,9 @@ import (
 // 	WebSocket *websocket.Conn
 // }
 type Message struct {
-	Recipient string `json:"recipient"`
+	Id string `json:"id"`
+	To string `json:"to"`
+	From string `json:"from"`
 	Content string `json:"content"`
 }
 
@@ -60,14 +62,25 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-
+		log.Println(string(p))
 		var msg Message
 		if err := json.Unmarshal(p, &msg); err != nil {
 			log.Println("Unmarshal", err)
 		}
-		response := fmt.Sprintf("message sent to %v", msg.Recipient)
-		clients[username].WriteMessage(messageType, []byte(response))
-		clients[msg.Recipient].WriteMessage(messageType, []byte(msg.Content))
+		log.Println(msg)
+		// response := fmt.Sprintf("hello %v", msg.From)
+		resp := Message{
+			Id: uuid.NewString(),
+			To: msg.To,
+			From: msg.From,
+			Content: msg.Content,
+		}
+		respBytes, err := json.Marshal(resp)
+		if err != nil {
+			log.Println("Marshal", err)
+		}
+		// clients[username].WriteMessage(messageType, respBytes)
+		clients[msg.To].WriteMessage(messageType, respBytes)
 	}
 	closeConnection(conn)
 }
