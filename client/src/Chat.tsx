@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from 'react'
 
-export type Message = {
-  id: string;
-  to: string;
-  from: string;
-  content: string;
-}
 
 interface ChatProps {
   socket: WebSocket | null;
