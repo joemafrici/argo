@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import Login from './Login'
-import { Message, ConversationPreview, Conversation } from './Types'
+import { ConversationPreview, Conversation } from './Types'
 import Chat from './Chat'
 import ChatList from './ChatList'
 import { fetchUserConversations } from './api'
 import './App.css'
-
 
 function App() {
   console.log('in App');
@@ -25,16 +24,6 @@ function App() {
   }
 
   const selectedConversation = conversations.find(c => c.ID === selectedConversationID);
-  // const addMessageToConversation = (conversationID: string, message: Message) => {
-  //   setConversations(prevConversations => {
-  //     const updatedConversations = { ...prevConversations };
-  //     if (!updatedConversations[conversationID]) {
-  //       updatedConversations[conversationID] = [];
-  //     }
-  //     updatedConversations[conversationID].push(message);
-  //     return updatedConversations;
-  //   });
-  // }
 
   useEffect(() => {
     const loadConversations = async () => {
@@ -70,10 +59,6 @@ function App() {
           console.log("connection died");
         }
       };
-      // socket.onmessage = (event: MessageEvent) => {
-      //   console.log(event.data);
-      //   setResponses((prev) => [...prev, event.data]);
-      // };
       socket.onerror = (event: Event) => {
         console.error("Websocket Error:", event);
       };
@@ -83,7 +68,6 @@ function App() {
 
     return () => {
       socket?.close();
-      //setRenderLogin(true);
     }
   }, [username]);
 

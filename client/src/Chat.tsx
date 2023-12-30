@@ -12,8 +12,6 @@ const Chat: React.FC<ChatProps> = ( { socket, username, conversation: initialCon
   console.log('in Chat');
   const [messageState, setMessageState] = useState("");
   const [conversationState, setConversationState] = useState<Conversation | undefined>(initialConversation);
-  //const [to, setTo] = useState("");
-  //const [history, setHistory] = useState<Message[]>([]);
 
   const sendMessage = () => {
     if (socket && conversationState) {
@@ -50,7 +48,6 @@ const Chat: React.FC<ChatProps> = ( { socket, username, conversation: initialCon
           }
           return prevState;
         });
-        //setHistory(prevMessages => [...prevMessages, newMessage]);
       }
     }
   }, [socket]);
@@ -72,7 +69,6 @@ const Chat: React.FC<ChatProps> = ( { socket, username, conversation: initialCon
   return(
     <section>
       <h1>Conversation</h1>
-      <input type='text' placeholder='person to chat with' onChange={e => setTo(e.target.value)}></input>
       <ul>{conversationUI}</ul>
       <section>
         <textarea rows={5} cols={10} onChange={e => setMessageState(e.target.value)} />
