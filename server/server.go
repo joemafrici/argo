@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -47,6 +48,7 @@ type Conversation struct {
 
 var (
 	// userConnections []UserConnection
+	clientsMu = &sync.RWMutex{}
 	clients = make(map[string]*websocket.Conn, 0)
 	dbname = "argodb"
 	dbclient *mongo.Client
@@ -110,6 +112,21 @@ func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleWebSocket")
 
+	username := r.URL.Query().Get("username")
+	if username == "" {
+		http.Error(w, "username is required", http.StatusBadRequest)
+		return
+	}
+	
+	clientsMu.RLock()
+	conn, ok := clients[username]
+	clientsMu.RUnlock()
+	if ok {
+		log.Println("WebSocket connection already exists for", username)
+		log.Println("closing old connection... upgrading new connection")
+		closeConnection(conn)
+	}
+
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -122,8 +139,21 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	username := r.URL.Query().Get("username")
+
+	clientsMu.Lock()
 	clients[username] = conn
+	clientsMu.Unlock()
+	
+	go handleConnection(username, conn)
+}
+func handleConnection(username string, conn *websocket.Conn) {
+	defer closeConnection(conn)
+	defer func() {
+		clientsMu.Lock()
+		delete(clients, username)
+		clientsMu.Unlock()
+	}()
+
 	for {
 		messageType, p, err := conn.ReadMessage()
 		if err != nil {
@@ -152,8 +182,12 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Println("Marshal", err)
 		}
-		if clients[msg.To] != nil {
-			clients[msg.To].WriteMessage(messageType, respBytes)
+
+		clientsMu.RLock()
+		recipientConn, recipientExists := clients[msg.To]
+		clientsMu.RUnlock()
+		if recipientExists {
+			recipientConn.WriteMessage(messageType, respBytes)
 		} else {
 			log.Println(msg.To, "is not logged in")
 		}
@@ -161,7 +195,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			log.Println("addMessageToConversation", err)	
 		}
 	}
-	closeConnection(conn)
 }
 // ***********************************************
 func addMessageToConversation(message Message) error {
