@@ -38,7 +38,7 @@ type Message struct {
 	To        string    `bson:"to"`
 	From      string    `bson:"from"`
 	Content   string    `bson:"content"`
-	Timestamp time.Time `bson:"timestamp"`
+	Timestamp *time.Time `bson:"timestamp,omitempty"`
 }
 type Conversation struct {
 	ID           string    `bson:"id"`
@@ -107,7 +107,6 @@ func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(conversations)
 }
-
 // ***********************************************
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleWebSocket")
@@ -147,6 +146,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	
 	go handleConnection(username, conn)
 }
+// ***********************************************
 func handleConnection(username string, conn *websocket.Conn) {
 	log.Println("in handleConnection")
 	defer closeConnection(conn)
@@ -168,32 +168,51 @@ func handleConnection(username string, conn *websocket.Conn) {
 			return
 		}
 
-		var msg Message
-		if err := json.Unmarshal(p, &msg); err != nil {
+		var echo Message
+		if err := json.Unmarshal(p, &echo); err != nil {
 			log.Println("Unmarshal", err)
 		}
-		resp := Message{
-			ID:      uuid.NewString(),
-			ConvID: msg.ConvID,
-			To:      msg.To,
-			From:    msg.From,
-			Content: msg.Content,
-			Timestamp: msg.Timestamp,
+
+		if echo.Timestamp == nil {
+			now := time.Now()
+			echo.Timestamp = &now
 		}
-		respBytes, err := json.Marshal(resp)
+		if echo.ID == "" {
+			echo.ID = uuid.NewString()
+		}
+
+		forward := Message{
+			ID:      uuid.NewString(),
+			ConvID: echo.ConvID,
+			To:      echo.To,
+			From:    echo.From,
+			Content: echo.Content,
+			Timestamp: echo.Timestamp,
+		}
+		forwardBytes, err := json.Marshal(forward)
+		if err != nil {
+			log.Println("Marshal", err)
+		}
+		echoBytes, err := json.Marshal(echo)
 		if err != nil {
 			log.Println("Marshal", err)
 		}
 
 		clientsMu.RLock()
-		recipientConn, recipientExists := clients[msg.To]
+		recipientConn, recipientExists := clients[echo.To]
+		echoConn, echoExists := clients[echo.From]
 		clientsMu.RUnlock()
-		if recipientExists {
-			recipientConn.WriteMessage(messageType, respBytes)
+		if echoExists {
+			echoConn.WriteMessage(messageType, echoBytes)
 		} else {
-			log.Println(msg.To, "is not logged in")
+			log.Println(echo.From, "is not logged in")
 		}
-		if err := addMessageToConversation(resp); err != nil {
+		if recipientExists {
+			recipientConn.WriteMessage(messageType, forwardBytes)
+		} else {
+			log.Println(echo.To, "is not logged in")
+		}
+		if err := addMessageToConversation(forward); err != nil {
 			log.Println("addMessageToConversation", err)	
 		}
 	}

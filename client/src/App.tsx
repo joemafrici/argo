@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import Login from './Login'
-import { ConversationPreview, Conversation } from './Types'
+import { Message, ConversationPreview, Conversation } from './Types'
 import Chat from './Chat'
 import ChatList from './ChatList'
 import { fetchUserConversations } from './api'
 import './App.css'
+import { useWebSocket } from './useWebSocket'
 
 function App() {
   console.log('in App');
@@ -12,9 +13,32 @@ function App() {
   const [selectedConversationID, setSelectedConversationID] = useState<string | null>(null);
   const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
   const [username, setUsername] = useState('');
-  const [socket, setSocket] = useState<WebSocket | null>(null);
   const [renderLogin, setRenderLogin] = useState(true);
+  
+  const handleWebSocketMessage = (newMessage: Message) => {
+    setConversations(prevConversations => {
+      const conversationIndex = prevConversations.findIndex(conv => conv.ID === newMessage.ConvID);
+      if (conversationIndex !== -1) {
+        const updatedConversation = {
+          ...prevConversations[conversationIndex],
+          Messages: [...prevConversations[conversationIndex].Messages, newMessage],
+        };
+        const updatedConversations = [
+          ...prevConversations.slice(0, conversationIndex),
+          updatedConversation,
+          ...prevConversations.slice(conversationIndex + 1),
+        ];
+        return updatedConversations;
+      } else {
+        return prevConversations;
+      }
+    });
+  };
 
+  const socket = useWebSocket(
+    username ? `ws://localhost:3001/ws?username=${encodeURIComponent(username)}` : '',
+    handleWebSocketMessage
+  );
   const handleLogin = (username: string) => {
     setUsername(username);
     setRenderLogin(false);
@@ -42,33 +66,6 @@ function App() {
     };
 
     loadConversations();
-  }, [username]);
-
-  useEffect(() => {
-    if (username) {
-      const socket = new WebSocket(
-        `ws://localhost:3001/ws?username=${encodeURIComponent(username)}`,
-      );
-      socket.onopen = () => console.log("onopen called");
-      socket.onclose = (event: CloseEvent) => {
-        if (event.wasClean) {
-          console.log(
-            `connection closed cleanly... code=${event.code}, reason=${event.reason}`,
-          );
-        } else {
-          console.log("connection died");
-        }
-      };
-      socket.onerror = (event: Event) => {
-        console.error("Websocket Error:", event);
-      };
-
-      setSocket(socket);
-    }
-
-    return () => {
-      socket?.close();
-    }
   }, [username]);
 
   return (

@@ -13,7 +13,7 @@ export interface Message {
     To: string;
     From: string;
     Content: string;
-    Timestamp: Date;
+    Timestamp?: Date;
 }
 export interface ConversationPreview {
     ID: string;
