@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Login from './Login'
-import { Message, ConversationPreview } from './Types'
+import { Message, ConversationPreview, Conversation } from './Types'
 import Chat from './Chat'
 import ChatList from './ChatList'
 import { fetchUserConversations } from './api'
@@ -8,8 +8,8 @@ import './App.css'
 
 
 function App() {
-  const [conversations, setConversations] = useState<Conversation[]>({});
-  const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>({});
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
   const [username, setUsername] = useState('deepwater');
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [renderLogin, setRenderLogin] = useState(true);
@@ -37,6 +37,18 @@ function App() {
       const fetchedConversations = await fetchUserConversations(username);
       if (fetchedConversations) {
         setConversations(fetchedConversations)
+        console.log('in loadConversations');
+        console.log(fetchedConversations);
+        console.log(fetchedConversations[0]);
+        const previews = fetchedConversations.map((conversation: Conversation) => {
+          const mostRecentMessage = conversation.Messages[conversation.Messages.length - 1];
+          console.log('most recent message');
+          return {
+            id: conversation.ID,
+            mostRecentMessage: mostRecentMessage,
+          }
+        });
+        setConversationPreviews(previews);
       }
     };
     // make sure this doesn't get called until loadConversations is done
@@ -45,7 +57,6 @@ function App() {
     // };
 
     loadConversations();
-    console.log(conversations);
     // buildConversationPreviews();
   }, [username]);
 
@@ -84,7 +95,7 @@ function App() {
   return (
     <>
       { renderLogin && <Login onLogin={handleLogin}/> }
-      {/* <ChatList conversationPreviews={conversationPreviews}/> */}
+      { <ChatList conversationPreviews={conversationPreviews}/> }
       <Chat socket={socket} username={username}/>
     </>
   )

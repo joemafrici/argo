@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"net/http"
 	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -18,6 +19,18 @@ import (
 //		Username    string
 //		WebSocket *websocket.Conn
 //	}
+
+// type Server struct {
+// 	listenAddr string
+// 	isRunning bool
+//
+// 	peersMu sync.RWMutex
+// 	peers map[string]net.Conn
+// }
+// func NewServer() *Server {
+// 	return &Server{}
+// }
+
 type Message struct {
 	ID        string    `bson:"id"`
 	To        string    `bson:"to"`
@@ -31,18 +44,20 @@ type Conversation struct {
 	Messages     []Message `bson:"messages"`
 }
 
-// var userConnections []UserConnection
-var clients = make(map[string]*websocket.Conn, 0)
-var dbname = "argodb"
-var dbclient *mongo.Client
-
+var (
+	// userConnections []UserConnection
+	clients = make(map[string]*websocket.Conn, 0)
+	dbname = "argodb"
+	dbclient *mongo.Client
+)
 const timeoutDuration = 5
 
 // ***********************************************
 func main() {
 	log.Println("connecting to database")
-	connectionString := "mongodb://localhost:27017"
-	dbclient, err := mongo.Connect(context.TODO(), options.Client().ApplyURI(connectionString))
+	cs := "mongodb://localhost:27017"
+	var err error
+	dbclient, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(cs))
 	if err != nil {
 		log.Fatal("mongo.Connect", err)
 	}
@@ -58,42 +73,44 @@ func main() {
 		}
 	}()
 
-	// conversations, err := getUserConversations(dbclient, "deepwater")
-	// log.Println(conversations)
 	port := ":3001"
-	http.HandleFunc("/ws", handler)
-	http.HandleFunc("/api/conversations", conversationsHandler)
+	http.HandleFunc("/ws", handleWebSocket)
+	http.HandleFunc("/api/conversations", handleGetUserConversations)
 	log.Println("server listening on port", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
 
 // ***********************************************
-func conversationsHandler(w http.ResponseWriter, r *http.Request) {
+func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
+	log.Println("in handleGetUserConversations")
+	if dbclient == nil {
+		http.Error(w, "Unable to retrieve conversations", http.StatusInternalServerError)
+		log.Println("handleGetUserConversations client is nil")
+		return
+	}
 	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	username := r.URL.Query().Get("user")
-	log.Println("user", username, "requested conversations")
 	if username == "" {
 		http.Error(w, "username is required", http.StatusBadRequest)
 		return
 	}
-
-	conversations, err := getUserConversations(dbclient, "deepwater")
+	conversations, err := getUserConversations("deepwater")
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	log.Println("sending conversations:", conversations)
+	log.Println(conversations)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(conversations)
 }
 
 // ***********************************************
-func handler(w http.ResponseWriter, r *http.Request) {
-	log.Println("received request from", r.URL.Query().Get("username"), r.Host)
+func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+	log.Println("in handleWebSocket")
 
-	var upgrader = websocket.Upgrader{
+	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
@@ -118,13 +135,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
-		log.Println(string(p))
+
 		var msg Message
 		if err := json.Unmarshal(p, &msg); err != nil {
 			log.Println("Unmarshal", err)
 		}
-		log.Println(msg)
-		// response := fmt.Sprintf("hello %v", msg.From)
 		resp := Message{
 			ID:      uuid.NewString(),
 			To:      msg.To,
@@ -143,6 +158,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 // ***********************************************
 func closeConnection(conn *websocket.Conn) {
+	log.Println("in closeConnection")
 	message := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 	//conn.SetWriteDeadline(time.Now().Add(timeoutDuration))
 	conn.WriteMessage(websocket.CloseMessage, message)
@@ -155,13 +171,13 @@ func closeConnection(conn *websocket.Conn) {
 
 // ***********************************************
 func getAllConversations(client *mongo.Client) ([]Conversation, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	log.Println("in getAllConversations")
+	ctx := context.TODO()	
 
 	var conversations []Conversation
 	collection := client.Database(dbname).Collection("conversations")
-
-	cursor, err := collection.Find(ctx, bson.M{})
+	query := bson.M{}
+	cursor, err := collection.Find(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -183,21 +199,19 @@ func getAllConversations(client *mongo.Client) ([]Conversation, error) {
 }
 
 // ***********************************************
-func getUserConversations(client *mongo.Client, username string) ([]Conversation, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5000*time.Second)
-	defer cancel()
+func getUserConversations(username string) ([]Conversation, error) {
+	log.Println("in getUserConversations")
+	ctx := context.TODO()
 
-	var conversations []Conversation
-	log.Println("requesting from ", dbname)
-	collection := client.Database(dbname).Collection("conversations")
-	log.Println(collection)
-
-	cursor, err := collection.Find(ctx, bson.M{"participants": username})
+	collection := dbclient.Database(dbname).Collection("conversations")
+	query := bson.M{"participants": username}
+	cursor, err := collection.Find(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
+	var conversations []Conversation
 	for cursor.Next(ctx) {
 		var conversation Conversation
 		if err := cursor.Decode(&conversation); err != nil {
@@ -205,7 +219,6 @@ func getUserConversations(client *mongo.Client, username string) ([]Conversation
 		}
 		conversations = append(conversations, conversation)
 	}
-
 	if err := cursor.Err(); err != nil {
 		return nil, err
 	}

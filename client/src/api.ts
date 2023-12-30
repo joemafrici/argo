@@ -6,7 +6,9 @@ export const fetchUserConversations = async (username: string): Promise<Conversa
         if (!response.ok) {
             throw new Error('Network response was not ok');
         }
-        const conversations: Conversation[] = await response.json();
+        const conversations: Conversation[] = (await response.json());
+        console.log('conversations fetched:');
+        console.log(conversations);
         return conversations;
     } catch (error) {
         console.error('Failed to fetch conversations', error);
