@@ -141,12 +141,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	clientsMu.Lock()
+	log.Println("adding", username, "to clients")
 	clients[username] = conn
 	clientsMu.Unlock()
 	
 	go handleConnection(username, conn)
 }
 func handleConnection(username string, conn *websocket.Conn) {
+	log.Println("in handleConnection")
 	defer closeConnection(conn)
 	defer func() {
 		clientsMu.Lock()

@@ -51,13 +51,8 @@ function App() {
         setConversationPreviews(previews);
       }
     };
-    // make sure this doesn't get called until loadConversations is done
-    // const buildConversationPreviews = () => {
-    //   const conversationPreviews: ConversationPreview[];
-    // };
 
     loadConversations();
-    // buildConversationPreviews();
   }, [username]);
 
   useEffect(() => {

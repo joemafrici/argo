@@ -8,23 +8,34 @@ interface ChatProps {
   conversation: Conversation | undefined;
 }
 
-const Chat: React.FC<ChatProps> = ( { socket, username, conversation }) => {
+const Chat: React.FC<ChatProps> = ( { socket, username, conversation: initialConversation }) => {
   console.log('in Chat');
-  console.log(conversation);
   const [messageState, setMessageState] = useState("");
-  const [to, setTo] = useState("");
-  const [history, setHistory] = useState<Message[]>([]);
+  const [conversationState, setConversationState] = useState<Conversation | undefined>(initialConversation);
+  //const [to, setTo] = useState("");
+  //const [history, setHistory] = useState<Message[]>([]);
 
   const sendMessage = () => {
-    if (socket) {
+    if (socket && conversationState) {
       const time = new Date();
+      let to: string;
+      for (const user of conversationState.Participants) {
+        if (user !== username) {
+          to = user;
+        }
+      }
       const messageToSend: Message = {
         ID: crypto.randomUUID(),
         To: to,
         From: username,
         Content: messageState,
         Timestamp: time,
+        ConvID: conversationState?.ID,
       };
+      setConversationState({
+        ...conversationState,
+        Messages: [...conversationState.Messages, messageToSend],
+      });
       socket?.send(JSON.stringify(messageToSend));
     }
   };
@@ -32,22 +43,32 @@ const Chat: React.FC<ChatProps> = ( { socket, username, conversation }) => {
   useEffect(() => {
     if (socket) {
       socket.onmessage = (event: MessageEvent) => {
-        const newMessage = JSON.parse(event.data);
-        //console.log(newMessage);
-        setHistory(prevMessages => [...prevMessages, newMessage]);
+        const newMessage = JSON.parse(event.data) as Message;
+        setConversationState((prevState) => {
+          if (prevState && prevState.ID === newMessage.ConvID) {
+            return { ...prevState, Messages: [...prevState.Messages, newMessage] };
+          }
+          return prevState;
+        });
+        //setHistory(prevMessages => [...prevMessages, newMessage]);
       }
     }
   }, [socket]);
 
-  if (!conversation) {
+  useEffect(() => {
+    setConversationState(initialConversation);
+  }, [initialConversation]);
+
+  if (!conversationState) {
     return <div>Select a conversation to start chatting</div>;
   }
 
-  const conversationUI = conversation.Messages.map((message) =>
+  const conversationUI = conversationState.Messages.map((message) =>
     <li key={message.ID}>
       <p>{message.From}: {message.Content}</p>
     </li>
   );
+
   return(
     <section>
       <h1>Conversation</h1>
