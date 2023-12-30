@@ -33,6 +33,7 @@ import (
 
 type Message struct {
 	ID        string    `bson:"id"`
+	ConvID string `bson:"convid"`
 	To        string    `bson:"to"`
 	From      string    `bson:"from"`
 	Content   string    `bson:"content"`
@@ -141,6 +142,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		}
 		resp := Message{
 			ID:      uuid.NewString(),
+			ConvID: msg.ConvID,
 			To:      msg.To,
 			From:    msg.From,
 			Content: msg.Content,
@@ -168,7 +170,7 @@ func addMessageToConversation(message Message) error {
 	coll := dbclient.Database(dbname).Collection("conversations")
 	log.Println(coll)
 	log.Println(message)
-	filter := bson.M{"id": "conv1"}
+	filter := bson.M{"id": message.ConvID}
 	update := bson.M{
 		"$push": bson.M{
 			"messages": message,

@@ -8,19 +8,23 @@ import './App.css'
 
 
 function App() {
+  console.log('in App');
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversationID, setSelectedConversationID] = useState<string | null>(null);
   const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
   const [username, setUsername] = useState('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [renderLogin, setRenderLogin] = useState(true);
 
-
-  //let conversationPreviews = buildConversationPreviews(); 
-
   const handleLogin = (username: string) => {
     setUsername(username);
     setRenderLogin(false);
   }
+  const handleConversationSelect = (conversationID: string) => {
+    setSelectedConversationID(conversationID);
+  }
+
+  const selectedConversation = conversations.find(c => c.ID === selectedConversationID);
   // const addMessageToConversation = (conversationID: string, message: Message) => {
   //   setConversations(prevConversations => {
   //     const updatedConversations = { ...prevConversations };
@@ -91,8 +95,11 @@ function App() {
   return (
     <>
       { renderLogin && <Login onLogin={handleLogin}/> }
-      { <ChatList conversationPreviews={conversationPreviews}/> }
-      <Chat socket={socket} username={username}/>
+      <ChatList 
+        conversationPreviews={conversationPreviews}
+        onConversationSelect={handleConversationSelect}
+      />
+      <Chat conversation={selectedConversation} socket={socket} username={username}/>
     </>
   )
 }

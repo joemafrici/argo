@@ -2,13 +2,13 @@ import React from 'react'
 import { ConversationPreview } from './Types';
 interface ChatListProps {
   conversationPreviews: ConversationPreview[];
+  onConversationSelect: (conversationID: string) => void;
 }
 
-const ChatList: React.FC<ChatListProps> = ( { conversationPreviews } ) => {
+const ChatList: React.FC<ChatListProps> = ( { conversationPreviews, onConversationSelect } ) => {
   console.log('in ChatList');
-  console.log(conversationPreviews);
   const chatListUI = conversationPreviews.map(conversationPreview => 
-    <li key={conversationPreview.ID}>
+    <li key={conversationPreview.ID} onClick={() => onConversationSelect(conversationPreview.ID)}>
       <p>{conversationPreview.MostRecentMessage.From}: {conversationPreview.MostRecentMessage.Content}</p>
     </li>
   );
