@@ -101,7 +101,6 @@ func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
-	log.Println(conversations)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(conversations)
 }
@@ -145,17 +144,41 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			To:      msg.To,
 			From:    msg.From,
 			Content: msg.Content,
+			Timestamp: msg.Timestamp,
 		}
 		respBytes, err := json.Marshal(resp)
 		if err != nil {
 			log.Println("Marshal", err)
 		}
-		// clients[username].WriteMessage(messageType, respBytes)
-		clients[msg.To].WriteMessage(messageType, respBytes)
+		if clients[msg.To] != nil {
+			clients[msg.To].WriteMessage(messageType, respBytes)
+		} else {
+			log.Println(msg.To, "is not logged in")
+		}
+		if err := addMessageToConversation(resp); err != nil {
+			log.Println("addMessageToConversation", err)	
+		}
 	}
 	closeConnection(conn)
 }
+// ***********************************************
+func addMessageToConversation(message Message) error {
+	log.Println("in addMessageToConversation")
 
+	coll := dbclient.Database(dbname).Collection("conversations")
+	log.Println(coll)
+	log.Println(message)
+	filter := bson.M{"id": "conv1"}
+	update := bson.M{
+		"$push": bson.M{
+			"messages": message,
+		},
+	}
+
+	res, err := coll.UpdateOne(context.TODO(), filter, update)
+	log.Println("matched:", res.MatchedCount)
+	return err
+}
 // ***********************************************
 func closeConnection(conn *websocket.Conn) {
 	log.Println("in closeConnection")

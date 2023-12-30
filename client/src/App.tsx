@@ -10,7 +10,7 @@ import './App.css'
 function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
-  const [username, setUsername] = useState('deepwater');
+  const [username, setUsername] = useState('');
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [renderLogin, setRenderLogin] = useState(true);
 
@@ -37,15 +37,11 @@ function App() {
       const fetchedConversations = await fetchUserConversations(username);
       if (fetchedConversations) {
         setConversations(fetchedConversations)
-        console.log('in loadConversations');
-        console.log(fetchedConversations);
-        console.log(fetchedConversations[0]);
         const previews = fetchedConversations.map((conversation: Conversation) => {
           const mostRecentMessage = conversation.Messages[conversation.Messages.length - 1];
-          console.log('most recent message');
           return {
-            id: conversation.ID,
-            mostRecentMessage: mostRecentMessage,
+            ID: conversation.ID,
+            MostRecentMessage: mostRecentMessage,
           }
         });
         setConversationPreviews(previews);

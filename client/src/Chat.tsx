@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Message } from './Types'
 
 
 interface ChatProps {
@@ -11,18 +12,20 @@ const Chat: React.FC<ChatProps> = ( { socket, username }) => {
   const [to, setTo] = useState("");
   const [history, setHistory] = useState<Message[]>([]);
   const messagesUI = history.map(message => 
-    <li key={message.id}>
-      <p>{message.content}</p>
+    <li key={message.ID}>
+      <p>{message.Content}</p>
     </li>
   );
 
   const sendMessage = () => {
     if (socket) {
+      const time = new Date();
       const messageToSend: Message = {
-        id: crypto.randomUUID(),
-        to: to,
-        from: username,
-        content: messageState,
+        ID: crypto.randomUUID(),
+        To: to,
+        From: username,
+        Content: messageState,
+        Timestamp: time,
       };
       socket?.send(JSON.stringify(messageToSend));
     }

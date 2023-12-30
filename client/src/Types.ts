@@ -2,19 +2,19 @@ export interface Conversations {
   [id: string]: Conversation[]
 }
 export interface Conversation {
-  id: string;
-  participants: string[];
-  messages: Message[];
+  ID: string;
+  Participants: string[];
+  Messages: Message[];
 
 }
 export interface Message {
-  id: string;
-  to: string;
-  from: string;
-  content: string;
-  timestamp: Date;
+  ID: string;
+  To: string;
+  From: string;
+  Content: string;
+  Timestamp: Date;
 }
 export interface ConversationPreview {
-    id: string;
-    mostRecentMessage: Message;
+    ID: string;
+    MostRecentMessage: Message;
 }
