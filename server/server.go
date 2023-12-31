@@ -86,10 +86,12 @@ func main() {
 
 // ***********************************************
 func handleCreateConversation(w http.ResponseWriter, r *http.Request) {
+	log.Println("in handleCreateConversation")
+	log.Println("method is", r.Method)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	if r.Method == "OPTIONS" {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -118,18 +120,20 @@ func handleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to create conversation", http.StatusInternalServerError)
 	}
-
+	log.Println(newConversation)
 	json.NewEncoder(w).Encode(newConversation)
 }
 // ***********************************************
 func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleGetUserConversations")
+	log.Println("method:", r.Method)
 	if dbclient == nil {
 		http.Error(w, "Unable to retrieve conversations", http.StatusInternalServerError)
 		log.Println("handleGetUserConversations client is nil")
 		return
 	}
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+	//w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	username := r.URL.Query().Get("user")

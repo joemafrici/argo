@@ -3,7 +3,7 @@ import Login from './Login'
 import { Message, ConversationPreview, Conversation } from './Types'
 import Chat from './Chat'
 import ChatList from './ChatList'
-import { fetchUserConversations } from './api'
+import { fetchUserConversations, fetchNewConversation } from './api'
 import './App.css'
 import { useWebSocket } from './useWebSocket'
 
@@ -23,27 +23,19 @@ function App() {
     setSelectedConversationID(conversationID);
   }
   const handleCreateNewConversation = async (participantUsername: string) => {
-    const response = await fetch(`http://localhost:3001/api/create-conversation`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ participants: [username, participantUsername] }),
-    });
-
-    if (response.ok) {
-      const newConversation = await response.json();
+    const newConversation = await fetchNewConversation(username, participantUsername);
+    if (newConversation) {
       console.log('new conversation received:', newConversation);
       setConversations(prev => [...prev, newConversation]);
       setSelectedConversationID(newConversation.ID);
     } else {
-      console.error('handleCreateNewConversation error');
+      console.log('handleCreateNewConversation unable to fetch new conversation');
     }
   }
   const handleWebSocketMessage = (newMessage: Message) => {
     setConversations(prevConversations => {
       const conversationIndex = prevConversations.findIndex(conv => conv.ID === newMessage.ConvID);
-      if (conversationIndex !== -1) {
+      if (conversationIndex >= 0) {
         const updatedConversation = {
           ...prevConversations[conversationIndex],
           Messages: [...prevConversations[conversationIndex].Messages, newMessage],
@@ -55,7 +47,12 @@ function App() {
         ];
         return updatedConversations;
       } else {
-        return prevConversations;
+        const newConversation: Conversation = {
+          ID: newMessage.ConvID,
+          Participants: [newMessage.From, username],
+          Messages: [newMessage],
+        };
+        return [...prevConversations, newConversation];
       }
     });
   };
@@ -66,6 +63,7 @@ function App() {
   );
 
   const selectedConversation = conversations.find(c => c.ID === selectedConversationID);
+
 
   useEffect(() => {
     const loadConversations = async () => {
@@ -86,6 +84,21 @@ function App() {
     loadConversations();
   }, [username]);
 
+  const generatePreviews = (conversations: Conversation[]): ConversationPreview[] => {
+    const previews = conversations.map((conversation: Conversation) => {
+      const mostRecentMessage = conversation.Messages[conversation.Messages.length - 1];
+      return {
+        ID: conversation.ID,
+        MostRecentMessage: mostRecentMessage,
+      }
+    });
+    return previews
+  };
+
+  useEffect(() => {
+    const previews = generatePreviews(conversations);
+    setConversationPreviews(previews);
+  }, [conversations]);
   return (
     <>
       { renderLogin && <Login onLogin={handleLogin}/> }
