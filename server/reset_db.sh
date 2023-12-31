@@ -19,6 +19,9 @@ db.$COLLECTION.insertOne({
         {id: 'msg5', to: 'socrates', from: 'deepwater', content: 'That sounds interesting!', timestamp: new Date()}
     ]
 });
+db.users.insertOne({
+    username: 'deepwater',
+    passwordHash: 'deepwater'
+});
 "
-
 echo "Database reset and default data inserted successfully."

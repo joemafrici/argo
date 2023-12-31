@@ -8,9 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/joemafrici/argo/utils"
+
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
@@ -31,7 +34,10 @@ import (
 // func NewServer() *Server {
 // 	return &Server{}
 // }
-
+type User struct {
+	Username string `bson:"username"`
+	Password string `bson:"password"`
+}
 type Message struct {
 	ID        string    `bson:"id"`
 	ConvID string `bson:"convid"`
@@ -80,10 +86,73 @@ func main() {
 	http.HandleFunc("/ws", handleWebSocket)
 	http.HandleFunc("/api/conversations", handleGetUserConversations)
 	http.HandleFunc("/api/create-conversation", handleCreateConversation)
+	http.HandleFunc("/api/user-registration", handleUserRegistration)
+	http.HandleFunc("/api/login", handleLogin)
 	log.Println("server listening on port", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
+// ***********************************************
+func handleUserRegistration(w http.ResponseWriter, r *http.Request) {
+	var newUser User
+	if err := json.NewDecoder(r.Body).Decode(&newUser); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var existingUser User
+	filter := bson.M{"username": newUser.Username}
+	err := dbclient.Database(dbname).Collection("users").FindOne(context.TODO(), filter).Decode(&existingUser)
+	if err == nil {
+		http.Error(w, "User already exists", http.StatusConflict)
+		return
+	} else if err != mongo.ErrNoDocuments {
+		http.Error(w, "Database error", http.StatusInternalServerError)
+		return
+	}
 
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newUser.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Server Error", http.StatusInternalServerError)
+		return
+	}
+	newUser.Password = string(hashedPassword)
+
+	_, err = dbclient.Database(dbname).Collection("users").InsertOne(context.TODO(), newUser)
+	if err != nil {
+		http.Error(w, "Failed to create new user", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+// ***********************************************
+func handleLogin(w http.ResponseWriter, r *http.Request) {
+	var loginUser User	
+	if err := json.NewDecoder(r.Body).Decode(&loginUser); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	
+	var storedUser User
+	filter := bson.M{"username": loginUser.Username}
+	err := dbclient.Database(dbname).Collection("users").FindOne(context.TODO(), filter).Decode(&storedUser)
+	if err != nil {
+		http.Error(w, "user not found", http.StatusUnauthorized)
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(loginUser.Password))
+	if err != nil {
+		http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
+		return
+	}
+
+	tokenString, err := utils.NewTokenString(loginUser.Username)
+	if err != nil {
+		http.Error(w, "Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+}
 // ***********************************************
 func handleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleCreateConversation")
