@@ -28,10 +28,6 @@ const Chat: React.FC<ChatProps> = ( { socket, username, conversation: initialCon
         Content: messageState,
         ConvID: conversationState?.ID,
       };
-      // setConversationState({
-      //   ...conversationState,
-      //   Messages: [...conversationState.Messages, messageToSend],
-      // });
       socket.send(JSON.stringify(messageToSend));
       setMessageState('');
     }

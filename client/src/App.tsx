@@ -15,6 +15,31 @@ function App() {
   const [username, setUsername] = useState('');
   const [renderLogin, setRenderLogin] = useState(true);
   
+  const handleLogin = (username: string) => {
+    setUsername(username);
+    setRenderLogin(false);
+  }
+  const handleConversationSelect = (conversationID: string) => {
+    setSelectedConversationID(conversationID);
+  }
+  const handleCreateNewConversation = async (participantUsername: string) => {
+    const response = await fetch(`http://localhost:3001/api/create-conversation`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ participants: [username, participantUsername] }),
+    });
+
+    if (response.ok) {
+      const newConversation = await response.json();
+      console.log('new conversation received:', newConversation);
+      setConversations(prev => [...prev, newConversation]);
+      setSelectedConversationID(newConversation.ID);
+    } else {
+      console.error('handleCreateNewConversation error');
+    }
+  }
   const handleWebSocketMessage = (newMessage: Message) => {
     setConversations(prevConversations => {
       const conversationIndex = prevConversations.findIndex(conv => conv.ID === newMessage.ConvID);
@@ -39,13 +64,6 @@ function App() {
     username ? `ws://localhost:3001/ws?username=${encodeURIComponent(username)}` : '',
     handleWebSocketMessage
   );
-  const handleLogin = (username: string) => {
-    setUsername(username);
-    setRenderLogin(false);
-  }
-  const handleConversationSelect = (conversationID: string) => {
-    setSelectedConversationID(conversationID);
-  }
 
   const selectedConversation = conversations.find(c => c.ID === selectedConversationID);
 
@@ -74,6 +92,7 @@ function App() {
       <ChatList 
         conversationPreviews={conversationPreviews}
         onConversationSelect={handleConversationSelect}
+        onCreateNewConversation={handleCreateNewConversation}
       />
       <Chat conversation={selectedConversation} socket={socket} username={username}/>
     </>

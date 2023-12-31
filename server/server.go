@@ -79,10 +79,48 @@ func main() {
 	port := ":3001"
 	http.HandleFunc("/ws", handleWebSocket)
 	http.HandleFunc("/api/conversations", handleGetUserConversations)
+	http.HandleFunc("/api/create-conversation", handleCreateConversation)
 	log.Println("server listening on port", port)
 	log.Fatal(http.ListenAndServe(port, nil))
 }
 
+// ***********************************************
+func handleCreateConversation(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var requestData struct {
+		Participants []string `json:"participants"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
+
+	newConversation := Conversation{
+		ID: uuid.NewString(),
+		Participants: requestData.Participants,
+		Messages: []Message{},
+	}
+
+	coll := dbclient.Database("argodb").Collection("conversations")
+	_, err := coll.InsertOne(context.TODO(), newConversation)
+	if err != nil {
+		http.Error(w, "Failed to create conversation", http.StatusInternalServerError)
+	}
+
+	json.NewEncoder(w).Encode(newConversation)
+}
 // ***********************************************
 func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleGetUserConversations")
@@ -99,7 +137,7 @@ func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "username is required", http.StatusBadRequest)
 		return
 	}
-	conversations, err := getUserConversations("deepwater")
+	conversations, err := getUserConversations(username)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -222,8 +260,6 @@ func addMessageToConversation(message Message) error {
 	log.Println("in addMessageToConversation")
 
 	coll := dbclient.Database(dbname).Collection("conversations")
-	log.Println(coll)
-	log.Println(message)
 	filter := bson.M{"id": message.ConvID}
 	update := bson.M{
 		"$push": bson.M{
