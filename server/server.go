@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang-jwt/jwt"
 	"github.com/joemafrici/argo/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -63,6 +64,11 @@ const timeoutDuration = 5
 
 // ***********************************************
 func main() {
+	errSecret := utils.LoadSecret()
+	if errSecret != nil {
+		log.Fatal(errSecret)
+	}
+
 	log.Println("connecting to database")
 	cs := "mongodb://localhost:27017"
 	var err error
@@ -82,17 +88,64 @@ func main() {
 		}
 	}()
 
+	mux := http.NewServeMux()
 	port := ":3001"
-	http.HandleFunc("/ws", handleWebSocket)
-	http.HandleFunc("/api/conversations", handleGetUserConversations)
-	http.HandleFunc("/api/create-conversation", handleCreateConversation)
-	http.HandleFunc("/api/user-registration", handleUserRegistration)
-	http.HandleFunc("/api/login", handleLogin)
+	mux.Handle("/ws", loggingMiddleware(http.HandlerFunc(handleWebSocket)))
+	mux.Handle("/api/register", loggingMiddleware(http.HandlerFunc(handleRegister)))
+	mux.Handle("/api/login", loggingMiddleware(http.HandlerFunc(handleLogin)))
+	mux.Handle("/api/conversations", loggingMiddleware(protectedEndpoint(handleGetUserConversations)))
+	mux.Handle("/api/create-conversation", loggingMiddleware(protectedEndpoint(handleCreateConversation)))
+	handler := corsMiddleware(mux)
 	log.Println("server listening on port", port)
-	log.Fatal(http.ListenAndServe(port, nil))
+	log.Fatal(http.ListenAndServe(port, handler))
 }
 // ***********************************************
-func handleUserRegistration(w http.ResponseWriter, r *http.Request) {
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		//w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+// ***********************************************
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Received request: %s %s", r.Method, r.URL)
+		
+		next.ServeHTTP(w, r)
+	})
+
+}
+// ***********************************************
+func protectedEndpoint(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Println("in protectedEndpoint")
+		token, err := utils.ValidateToken(r)
+		if err != nil {
+			log.Printf("Token validation error: %v", err)
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			ctx := context.WithValue(r.Context(), "username", claims["username"])
+			handler(w, r.WithContext(ctx))
+		} else {
+			http.Error(w, "Invalid token", http.StatusUnauthorized)
+		}
+	}
+}
+// ***********************************************
+func handleRegister(w http.ResponseWriter, r *http.Request) {
+	log.Println("in handleRegister")
+
 	var newUser User
 	if err := json.NewDecoder(r.Body).Decode(&newUser); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -126,25 +179,25 @@ func handleUserRegistration(w http.ResponseWriter, r *http.Request) {
 }
 // ***********************************************
 func handleLogin(w http.ResponseWriter, r *http.Request) {
+	log.Println("in handleLogin")
+
 	var loginUser User	
 	if err := json.NewDecoder(r.Body).Decode(&loginUser); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	
 	var storedUser User
 	filter := bson.M{"username": loginUser.Username}
 	err := dbclient.Database(dbname).Collection("users").FindOne(context.TODO(), filter).Decode(&storedUser)
 	if err != nil {
 		http.Error(w, "user not found", http.StatusUnauthorized)
 	}
-
 	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(loginUser.Password))
 	if err != nil {
+		log.Println("Invalid Credentials", err)
 		http.Error(w, "Invalid Credentials", http.StatusUnauthorized)
 		return
 	}
-
 	tokenString, err := utils.NewTokenString(loginUser.Username)
 	if err != nil {
 		http.Error(w, "Server Error", http.StatusInternalServerError)
@@ -156,31 +209,30 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 // ***********************************************
 func handleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleCreateConversation")
-	log.Println("method is", r.Method)
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
 
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
+	initiator, ok := r.Context().Value("username").(string)
+	if !ok {
+		http.Error(w, "Invalid user context", http.StatusInternalServerError)
+		return
+	}
 	var requestData struct {
 		Participants []string `json:"participants"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-		http.Error(w, "Bad request", http.StatusBadRequest)
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
+	
+	participants := append(requestData.Participants, initiator)
+	participants = utils.RemoveDuplicates(participants)
 	newConversation := Conversation{
 		ID: uuid.NewString(),
-		Participants: requestData.Participants,
+		Participants: participants,
 		Messages: []Message{},
 	}
 
@@ -195,23 +247,27 @@ func handleCreateConversation(w http.ResponseWriter, r *http.Request) {
 // ***********************************************
 func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleGetUserConversations")
-	log.Println("method:", r.Method)
+
 	if dbclient == nil {
 		http.Error(w, "Unable to retrieve conversations", http.StatusInternalServerError)
 		log.Println("handleGetUserConversations client is nil")
 		return
 	}
-	//w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-	username := r.URL.Query().Get("user")
+
+	username, ok := r.Context().Value("username").(string)
+	log.Println("Request username", username)
+	if !ok {
+		http.Error(w, "Invalid user context", http.StatusInternalServerError)
+		return
+	}
 	if username == "" {
 		http.Error(w, "username is required", http.StatusBadRequest)
 		return
 	}
 	conversations, err := getUserConversations(username)
+	log.Println(conversations)
 	if err != nil {
+		log.Println("conversations err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -221,21 +277,6 @@ func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 // ***********************************************
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleWebSocket")
-
-	username := r.URL.Query().Get("username")
-	if username == "" {
-		http.Error(w, "username is required", http.StatusBadRequest)
-		return
-	}
-	
-	clientsMu.RLock()
-	conn, ok := clients[username]
-	clientsMu.RUnlock()
-	if ok {
-		log.Println("WebSocket connection already exists for", username)
-		log.Println("closing old connection... upgrading new connection")
-		closeConnection(conn)
-	}
 
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -249,9 +290,37 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
+	//defer conn.Close()
+	log.Println("ready to receive auth message")
+	_, message, err := conn.ReadMessage()
+	if err != nil {
+		log.Println("Error reading WebSocket message", err)
+		return
+	}
+	log.Println("received auth message")
 
+	var authMessage struct {
+		Token string `json:"token"`
+	}
+	if err := json.Unmarshal(message, &authMessage); err != nil {
+		log.Println("Invalid authentication message")
+		conn.WriteMessage(websocket.CloseMessage, []byte("Invalid authentication"))
+		return
+	}
+	log.Println(authMessage.Token)
+
+	username, err := utils.ValidateTokenFromString(authMessage.Token)
+	if err != nil {
+		log.Println("Invalid token:", err)
+		conn.WriteMessage(websocket.CloseMessage, []byte("Invalid token"))
+		return
+	}
+	
 	clientsMu.Lock()
-	log.Println("adding", username, "to clients")
+	if oldConn, ok := clients[username]; ok {
+		log.Println("WebSocket connection already exists for", username)
+		closeConnection(oldConn)
+	}
 	clients[username] = conn
 	clientsMu.Unlock()
 	

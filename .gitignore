@@ -21,6 +21,7 @@
 # Go workspace file
 go.work
 
+server/.env
 
 # React project generated
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.

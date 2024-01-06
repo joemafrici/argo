@@ -6,30 +6,41 @@ import ChatList from './ChatList'
 import { fetchUserConversations, fetchNewConversation } from './api'
 import './App.css'
 import { useWebSocket } from './useWebSocket'
+import { getUsernameFromToken } from './utils'
+import Register from './Register'
 
 function App() {
   console.log('in App');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationID, setSelectedConversationID] = useState<string | null>(null);
   const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
-  const [username, setUsername] = useState('');
-  const [renderLogin, setRenderLogin] = useState(true);
-  
-  const handleLogin = (username: string) => {
-    setUsername(username);
-    setRenderLogin(false);
+  const [registerSuccessMessage, setRegisterSuccessMessage] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!localStorage.getItem('token'));
+  const handleRegisterSuccess = () => {
+   setRegisterSuccessMessage('Registration successful.. You can now log in to your account.'); 
+  }
+  const handleLogin = (token: string) => {
+    localStorage.setItem('token', token);
+    setIsLoggedIn(true)
+  }
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
   }
   const handleConversationSelect = (conversationID: string) => {
     setSelectedConversationID(conversationID);
   }
   const handleCreateNewConversation = async (participantUsername: string) => {
-    const newConversation = await fetchNewConversation(username, participantUsername);
-    if (newConversation) {
-      console.log('new conversation received:', newConversation);
-      setConversations(prev => [...prev, newConversation]);
-      setSelectedConversationID(newConversation.ID);
-    } else {
-      console.log('handleCreateNewConversation unable to fetch new conversation');
+    const username = getUsernameFromToken()
+    if (username) {
+      const newConversation = await fetchNewConversation(username, participantUsername);
+      if (newConversation) {
+        console.log('new conversation received:', newConversation);
+        setConversations(prev => [...prev, newConversation]);
+        setSelectedConversationID(newConversation.ID);
+      } else {
+        console.log('handleCreateNewConversation unable to fetch new conversation');
+      }
     }
   }
   const handleWebSocketMessage = (newMessage: Message) => {
@@ -49,14 +60,16 @@ function App() {
       } else {
         const newConversation: Conversation = {
           ID: newMessage.ConvID,
-          Participants: [newMessage.From, username],
+          Participants: [newMessage.From, getUsernameFromToken()!],
           Messages: [newMessage],
         };
         return [...prevConversations, newConversation];
       }
     });
   };
-
+  // determine if this line can just be at the top of this component
+  // also don't actually need to send username in url anymore I think...
+  const username = getUsernameFromToken();
   const socket = useWebSocket(
     username ? `ws://localhost:3001/ws?username=${encodeURIComponent(username)}` : '',
     handleWebSocketMessage
@@ -67,7 +80,9 @@ function App() {
 
   useEffect(() => {
     const loadConversations = async () => {
-      const fetchedConversations = await fetchUserConversations(username);
+      const fetchedConversations = await fetchUserConversations();
+      console.log('fetchedConversations');
+      console.log(fetchedConversations);
       if (fetchedConversations) {
         setConversations(fetchedConversations)
         const previews = fetchedConversations.map((conversation: Conversation) => {
@@ -80,8 +95,10 @@ function App() {
         setConversationPreviews(previews);
       }
     };
-
-    loadConversations();
+    const token = localStorage.getItem('token');
+    if (token) {
+      loadConversations();
+    }
   }, [username]);
 
   const generatePreviews = (conversations: Conversation[]): ConversationPreview[] => {
@@ -99,15 +116,26 @@ function App() {
     const previews = generatePreviews(conversations);
     setConversationPreviews(previews);
   }, [conversations]);
+
+  if (!isLoggedIn) {
+    return (<> 
+      { registerSuccessMessage && <div>{registerSuccessMessage}</div> }
+      <Register onRegisterSuccess={handleRegisterSuccess}/>
+      <Login onLogin={handleLogin}/>
+    </>);
+  }
+
   return (
     <>
-      { renderLogin && <Login onLogin={handleLogin}/> }
+      {/* registerSuccessMessage && <Register onRegisterSuccess={handleRegisterSuccess}/> */}
+      { /* renderLogin && <Login onLogin={handleLogin}/> */ }
       <ChatList 
         conversationPreviews={conversationPreviews}
         onConversationSelect={handleConversationSelect}
         onCreateNewConversation={handleCreateNewConversation}
       />
-      <Chat conversation={selectedConversation} socket={socket} username={username}/>
+      <Chat conversation={selectedConversation} socket={socket} username={getUsernameFromToken()!}/>
+      <button onClick={handleLogout}>Logout</button>
     </>
   )
 }
