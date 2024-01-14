@@ -3,7 +3,7 @@ import { Message } from './Types';
 
 export function useWebSocket(url: string, onMessage: (newMessage: Message) => void) {
     const [socket, setSocket] = useState<WebSocket | null>(null);
-
+    console.log('in useWebSocket');
     useEffect(() => {
         if (!url) return;
         const token = localStorage.getItem('token');

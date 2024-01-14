@@ -16,7 +16,7 @@ import (
 )
 
 // ***********************************************
-func handleRegister(w http.ResponseWriter, r *http.Request) {
+func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleRegister")
 
 	var newUser User
@@ -51,7 +51,7 @@ func handleRegister(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 // ***********************************************
-func handleLogin(w http.ResponseWriter, r *http.Request) {
+func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleLogin")
 
 	var loginUser User	
@@ -59,6 +59,8 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	log.Println("username: ", loginUser.Username)
+	log.Println("password: ", loginUser.Password)
 	var storedUser User
 	filter := bson.M{"username": loginUser.Username}
 	err := dbclient.Database(dbname).Collection("users").FindOne(context.TODO(), filter).Decode(&storedUser)
@@ -80,7 +82,7 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 }
 // ***********************************************
-func handleCreateConversation(w http.ResponseWriter, r *http.Request) {
+func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleCreateConversation")
 
 	if r.Method != "POST" {
@@ -118,7 +120,7 @@ func handleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(newConversation)
 }
 // ***********************************************
-func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
+func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleGetUserConversations")
 
 	if dbclient == nil {
@@ -148,7 +150,7 @@ func handleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(conversations)
 }
 // ***********************************************
-func handleWebSocket(w http.ResponseWriter, r *http.Request) {
+func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Println("in handleWebSocket")
 
 	upgrader := websocket.Upgrader{
@@ -163,7 +165,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	//defer conn.Close()
+
 	log.Println("ready to receive auth message")
 	_, message, err := conn.ReadMessage()
 	if err != nil {
@@ -197,10 +199,10 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	clients[username] = conn
 	clientsMu.Unlock()
 	
-	go handleConnection(username, conn)
+	go HandleConnection(username, conn)
 }
 // ***********************************************
-func handleConnection(username string, conn *websocket.Conn) {
+func HandleConnection(username string, conn *websocket.Conn) {
 	log.Println("in handleConnection")
 	defer closeConnection(conn)
 	defer func() {

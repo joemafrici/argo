@@ -55,11 +55,11 @@ func main() {
 
 	mux := http.NewServeMux()
 	port := ":3001"
-	mux.Handle("/ws", loggingMiddleware(http.HandlerFunc(handleWebSocket)))
-	mux.Handle("/api/register", loggingMiddleware(http.HandlerFunc(handleRegister)))
-	mux.Handle("/api/login", loggingMiddleware(http.HandlerFunc(handleLogin)))
-	mux.Handle("/api/conversations", loggingMiddleware(protectedEndpoint(handleGetUserConversations)))
-	mux.Handle("/api/create-conversation", loggingMiddleware(protectedEndpoint(handleCreateConversation)))
+	mux.Handle("/ws", loggingMiddleware(http.HandlerFunc(HandleWebSocket)))
+	mux.Handle("/api/register", loggingMiddleware(http.HandlerFunc(HandleRegister)))
+	mux.Handle("/api/login", loggingMiddleware(http.HandlerFunc(HandleLogin)))
+	mux.Handle("/api/conversations", loggingMiddleware(protectedEndpoint(HandleGetUserConversations)))
+	mux.Handle("/api/create-conversation", loggingMiddleware(protectedEndpoint(HandleCreateConversation)))
 	handler := corsMiddleware(mux)
 
 	log.Println("server listening on port", port)

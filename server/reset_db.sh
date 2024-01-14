@@ -20,8 +20,8 @@ db.$COLLECTION.insertOne({
     ]
 });
 db.users.insertOne({
-    username: 'deepwater',
-    passwordHash: 'deepwater'
+    username: 'testUser',
+    passwordHash: 'this wont work'
 });
 "
 echo "Database reset and default data inserted successfully."

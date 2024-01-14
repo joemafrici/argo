@@ -16,6 +16,7 @@ function App() {
   const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
   const [registerSuccessMessage, setRegisterSuccessMessage] = useState('');
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!localStorage.getItem('token'));
+
   const handleRegisterSuccess = () => {
    setRegisterSuccessMessage('Registration successful.. You can now log in to your account.'); 
   }
@@ -44,6 +45,7 @@ function App() {
     }
   }
   const handleWebSocketMessage = (newMessage: Message) => {
+    console.log('in handleWebSocketMessage');
     setConversations(prevConversations => {
       const conversationIndex = prevConversations.findIndex(conv => conv.ID === newMessage.ConvID);
       if (conversationIndex >= 0) {
@@ -67,11 +69,9 @@ function App() {
       }
     });
   };
-  // determine if this line can just be at the top of this component
-  // also don't actually need to send username in url anymore I think...
   const username = getUsernameFromToken();
   const socket = useWebSocket(
-    username ? `ws://localhost:3001/ws?username=${encodeURIComponent(username)}` : '',
+    username ? 'ws://localhost:3001/ws' : '',
     handleWebSocketMessage
   );
 
@@ -127,8 +127,6 @@ function App() {
 
   return (
     <>
-      {/* registerSuccessMessage && <Register onRegisterSuccess={handleRegisterSuccess}/> */}
-      { /* renderLogin && <Login onLogin={handleLogin}/> */ }
       <ChatList 
         conversationPreviews={conversationPreviews}
         onConversationSelect={handleConversationSelect}

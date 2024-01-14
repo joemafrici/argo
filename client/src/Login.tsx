@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { login } from './api'
 type LoginProps = {
-  //onLogin: (username: string) => void;
   onLogin: (token: string) => void;
 };
 
