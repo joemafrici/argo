@@ -1,20 +1,20 @@
 import React, { useEffect, useState } from 'react'
-import { Message, Conversation } from './Types'
+import { Message, Conversation } from '../types'
 
 
 interface ChatProps {
-  socket: WebSocket | null;
+  sendMessage: (messag: Message) => void;
   username: string;
   conversation: Conversation | undefined;
 }
 
-const Chat: React.FC<ChatProps> = ( { socket, username, conversation: initialConversation }) => {
+const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initialConversation }) => {
   console.log('in Chat');
   const [messageState, setMessageState] = useState('');
   const [conversationState, setConversationState] = useState<Conversation | undefined>(initialConversation);
 
-  const sendMessage = () => {
-    if (socket && conversationState && messageState.trim() !== '') {
+  const handleSendMessage = () => {
+    if (conversationState && messageState.trim() !== '') {
       let to = '';
       for (const user of conversationState.Participants) {
         if (user !== username) {
@@ -29,8 +29,7 @@ const Chat: React.FC<ChatProps> = ( { socket, username, conversation: initialCon
         ConvID: conversationState?.ID,
       };
       console.log(`messageToSend to ${messageToSend.To} from ${messageToSend.From} and content ${messageToSend.Content}`);
-      console.log(socket);
-      socket.send(JSON.stringify(messageToSend));
+      sendMessage(messageToSend);
       setMessageState('');
     }
   };
@@ -55,7 +54,7 @@ const Chat: React.FC<ChatProps> = ( { socket, username, conversation: initialCon
       <ul>{conversationUI}</ul>
       <section>
         <textarea rows={5} cols={10} value={messageState} onChange={e => setMessageState(e.target.value)} />
-        <button onClick={sendMessage}>Send</button>
+        <button onClick={handleSendMessage}>Send</button>
       </section>
     </section>
   );

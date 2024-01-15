@@ -1,4 +1,4 @@
-import { Conversation } from './Types'
+import { Conversation } from './types'
 
 export async function login(username: string, password: string): Promise<string> {
     const response = await fetch('http://localhost:3001/api/login', {

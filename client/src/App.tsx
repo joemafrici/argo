@@ -1,51 +1,53 @@
-import { useState, useEffect } from 'react'
-import Login from './Login'
-import { Message, ConversationPreview, Conversation } from './Types'
-import Chat from './Chat'
-import ChatList from './ChatList'
+import { useState, useEffect, useCallback } from 'react'
+import Login from './components/Login'
+import Chat from './components/Chat'
+import ChatList from './components/ChatList'
+import Register from './components/Register'
+import { Message, ConversationPreview, Conversation } from './types'
 import { fetchUserConversations, fetchNewConversation } from './api'
 import './App.css'
-import { useWebSocket } from './useWebSocket'
+import { useWebSocket } from './hooks/useWebSocket'
+import useAuth from './hooks/useAuth'
 import { getUsernameFromToken } from './utils'
-import Register from './Register'
 
 function App() {
-  console.log('in App');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationID, setSelectedConversationID] = useState<string | null>(null);
   const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
-  const [registerSuccessMessage, setRegisterSuccessMessage] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!localStorage.getItem('token'));
+  const [username, setUsername] = useState<string | null>(null);
+  const [shouldConnect, setShouldConnect] = useState<boolean>(false);
+  const {
+    isLoggedIn,
+    registerSuccessMessage,
+    handleLogin,
+    handleLogout,
+    handleRegisterSuccess
+  } = useAuth();
 
-  const handleRegisterSuccess = () => {
-   setRegisterSuccessMessage('Registration successful.. You can now log in to your account.'); 
-  }
-  const handleLogin = (token: string) => {
-    localStorage.setItem('token', token);
-    setIsLoggedIn(true)
-  }
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setIsLoggedIn(false);
-  }
+  const handleAppLogin = useCallback((token: string) => {
+    handleLogin(token);
+    setShouldConnect(true);
+  }, [handleLogin]);
+  const handleAppLogout = useCallback(() => {
+    handleLogout();
+    setShouldConnect(false);
+  }, [handleLogout]);
+
   const handleConversationSelect = (conversationID: string) => {
     setSelectedConversationID(conversationID);
   }
   const handleCreateNewConversation = async (participantUsername: string) => {
-    const username = getUsernameFromToken()
     if (username) {
       const newConversation = await fetchNewConversation(username, participantUsername);
       if (newConversation) {
-        console.log('new conversation received:', newConversation);
         setConversations(prev => [...prev, newConversation]);
         setSelectedConversationID(newConversation.ID);
       } else {
-        console.log('handleCreateNewConversation unable to fetch new conversation');
+        console.error('handleCreateNewConversation unable to fetch new conversation');
       }
     }
   }
-  const handleWebSocketMessage = (newMessage: Message) => {
-    console.log('in handleWebSocketMessage');
+  const handleWebSocketMessage = useCallback((newMessage: Message) => {
     setConversations(prevConversations => {
       const conversationIndex = prevConversations.findIndex(conv => conv.ID === newMessage.ConvID);
       if (conversationIndex >= 0) {
@@ -62,27 +64,31 @@ function App() {
       } else {
         const newConversation: Conversation = {
           ID: newMessage.ConvID,
-          Participants: [newMessage.From, getUsernameFromToken()!],
+          Participants: [newMessage.From, username!],
           Messages: [newMessage],
         };
         return [...prevConversations, newConversation];
       }
     });
-  };
-  const username = getUsernameFromToken();
-  const socket = useWebSocket(
-    username ? 'ws://localhost:3001/ws' : '',
-    handleWebSocketMessage
-  );
+  }, [setConversations]);
+
+  const token = localStorage.getItem('token');
+  const { sendMessage } = useWebSocket(shouldConnect, token, handleWebSocketMessage);
 
   const selectedConversation = conversations.find(c => c.ID === selectedConversationID);
 
-
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      const usernameFromToken = getUsernameFromToken();
+      setUsername(usernameFromToken);
+    } else {
+      setUsername(null);
+    }
+  }, []);
   useEffect(() => {
     const loadConversations = async () => {
       const fetchedConversations = await fetchUserConversations();
-      console.log('fetchedConversations');
-      console.log(fetchedConversations);
       if (fetchedConversations) {
         setConversations(fetchedConversations)
         const previews = fetchedConversations.map((conversation: Conversation) => {
@@ -121,7 +127,7 @@ function App() {
     return (<> 
       { registerSuccessMessage && <div>{registerSuccessMessage}</div> }
       <Register onRegisterSuccess={handleRegisterSuccess}/>
-      <Login onLogin={handleLogin}/>
+      <Login onLogin={handleAppLogin}/>
     </>);
   }
 
@@ -132,8 +138,14 @@ function App() {
         onConversationSelect={handleConversationSelect}
         onCreateNewConversation={handleCreateNewConversation}
       />
-      <Chat conversation={selectedConversation} socket={socket} username={getUsernameFromToken()!}/>
-      <button onClick={handleLogout}>Logout</button>
+      {selectedConversation &&
+        <Chat 
+          sendMessage={sendMessage}
+          username={username!}
+          conversation={selectedConversation}
+        />
+      }
+      <button onClick={handleAppLogout}>Logout</button>
     </>
   )
 }
