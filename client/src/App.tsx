@@ -91,7 +91,7 @@ function App() {
     console.log('fetching conversations');
     const loadConversations = async () => {
       const fetchedConversations = await fetchUserConversations();
-      console.log(fetchedConversations);
+      console.log(`conversations fetched ${fetchedConversations}`);
       if (fetchedConversations) {
         console.log('fetchedConversations not null');
         setConversations(fetchedConversations)
@@ -107,11 +107,10 @@ function App() {
         setConversationPreviews(previews);
       }
     };
-    const token = localStorage.getItem('token');
-    if (token) {
+    if (isLoggedIn) {
       loadConversations();
     }
-  }, [username]);
+  }, [isLoggedIn]);
 
   const generatePreviews = (conversations: Conversation[]): ConversationPreview[] => {
     const previews = conversations.map((conversation: Conversation) => {

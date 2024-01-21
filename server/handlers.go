@@ -59,8 +59,7 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Println("username: ", loginUser.Username)
-	log.Println("password: ", loginUser.Password)
+
 	var storedUser User
 	filter := bson.M{"username": loginUser.Username}
 	err := dbclient.Database(dbname).Collection("users").FindOne(context.TODO(), filter).Decode(&storedUser)
@@ -130,7 +129,6 @@ func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username, ok := r.Context().Value("username").(string)
-	log.Println("Request username", username)
 	if !ok {
 		http.Error(w, "Invalid user context", http.StatusInternalServerError)
 		return
@@ -140,7 +138,6 @@ func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	conversations, err := getUserConversations(username)
-	log.Println(conversations)
 	if err != nil {
 		log.Println("conversations err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -166,13 +163,11 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("ready to receive auth message")
 	_, message, err := conn.ReadMessage()
 	if err != nil {
 		log.Println("Error reading WebSocket message", err)
 		return
 	}
-	log.Println("received auth message")
 
 	var authMessage struct {
 		Token string `json:"token"`
@@ -182,7 +177,6 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 		conn.WriteMessage(websocket.CloseMessage, []byte("Invalid authentication"))
 		return
 	}
-	log.Println(authMessage.Token)
 
 	username, err := utils.ValidateTokenFromString(authMessage.Token)
 	if err != nil {
@@ -198,7 +192,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	clients[username] = conn
 	clientsMu.Unlock()
-	
+	log.Println(username, "authenticated")
 	go HandleConnection(username, conn)
 }
 // ***********************************************
