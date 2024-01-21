@@ -14,7 +14,7 @@ function App() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversationID, setSelectedConversationID] = useState<string | null>(null);
   const [conversationPreviews, setConversationPreviews] = useState<ConversationPreview[]>([]);
-  const [username, setUsername] = useState<string | null>(null);
+  const [username, setUsername] = useState<string>('');
   const [shouldConnect, setShouldConnect] = useState<boolean>(false);
   const {
     isLoggedIn,
@@ -48,6 +48,7 @@ function App() {
     }
   }
   const handleWebSocketMessage = useCallback((newMessage: Message) => {
+    console.log('setting conversations');
     setConversations(prevConversations => {
       const conversationIndex = prevConversations.findIndex(conv => conv.ID === newMessage.ConvID);
       if (conversationIndex >= 0) {
@@ -83,13 +84,16 @@ function App() {
       const usernameFromToken = getUsernameFromToken();
       setUsername(usernameFromToken);
     } else {
-      setUsername(null);
+      setUsername('');
     }
   }, []);
   useEffect(() => {
+    console.log('fetching conversations');
     const loadConversations = async () => {
       const fetchedConversations = await fetchUserConversations();
+      console.log(fetchedConversations);
       if (fetchedConversations) {
+        console.log('fetchedConversations not null');
         setConversations(fetchedConversations)
         const previews = fetchedConversations.map((conversation: Conversation) => {
           const mostRecentMessage = conversation.Messages[conversation.Messages.length - 1];
@@ -98,6 +102,8 @@ function App() {
             MostRecentMessage: mostRecentMessage,
           }
         });
+        console.log('setting conversation previews');
+        console.log(previews);
         setConversationPreviews(previews);
       }
     };
@@ -126,8 +132,8 @@ function App() {
   if (!isLoggedIn) {
     return (<> 
       { registerSuccessMessage && <div>{registerSuccessMessage}</div> }
-      <Register onRegisterSuccess={handleRegisterSuccess}/>
-      <Login onLogin={handleAppLogin}/>
+      <Register setUsername={setUsername} onRegisterSuccess={handleRegisterSuccess}/>
+      <Login setUsername={setUsername} onLogin={handleAppLogin}/>
     </>);
   }
 

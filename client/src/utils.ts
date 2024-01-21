@@ -15,7 +15,7 @@ export const getUsernameFromToken = () => {
                 // showMessage('Invalid session. Please log in again.');
                 // logoutUser();
                 // redirectToLogin();
-                return null;
+                return '';
             }
         } catch (error) {
             console.error('Token decoding error:', error);
@@ -24,5 +24,5 @@ export const getUsernameFromToken = () => {
             // redirectToLogin();
         }
     }
-    return null;
+    return '';
 }

@@ -3,18 +3,20 @@ import { register } from '../api';
 
 type RegisterProps = {
   onRegisterSuccess: () => void;
+  setUsername: React.Dispatch<React.SetStateAction<string>>;
 };
 
-const Register: React.FC<RegisterProps> = ({ onRegisterSuccess: onRegisterSuccess }) => {
-  const [username, setUsername] = useState('');
+const Register: React.FC<RegisterProps> = ({ onRegisterSuccess: onRegisterSuccess, setUsername }) => {
+  const [usernameInput, setUsernameInput] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (username && password) {
+    setUsername(usernameInput);
+    if (usernameInput && password) {
       try {
-        await register(username, password);
+        await register(usernameInput, password);
         onRegisterSuccess();
       } catch (err) {
         setError('Failed to register');
@@ -22,14 +24,14 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess: onRegisterSucces
     } else {
       setError('Enter both username and password');
     }
-    setUsername('');
+    setUsernameInput('');
     setPassword('');
   }
 
   return (
     <form onSubmit={handleSubmit}>
-      <input type='text' value={username} placeholder={'Username'}
-        onChange={e => setUsername(e.target.value)} />
+      <input type='text' value={usernameInput} placeholder={'Username'}
+        onChange={e => setUsernameInput(e.target.value)} />
       <input type='password' value={password} placeholder={'Password'}
         onChange={e => setPassword(e.target.value)} />
       {error && <div>{error}</div>}
