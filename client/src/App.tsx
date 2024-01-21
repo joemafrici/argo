@@ -37,7 +37,6 @@ function App() {
     setShouldConnect(false);
   }, [handleLogout]);
 
-
   const token = localStorage.getItem('token');
   const { sendMessage } = useWebSocket(shouldConnect, token, handleNewMessage);
 
@@ -53,9 +52,9 @@ function App() {
     }
   }, []);
 
-
   if (!isLoggedIn) {
-    return (<> 
+    return (
+      <> 
       { registerSuccessMessage && <div>{registerSuccessMessage}</div> }
       <Register setUsername={setUsername} onRegisterSuccess={handleRegisterSuccess}/>
       <Login setUsername={setUsername} onLogin={handleAppLogin}/>
