@@ -7,8 +7,6 @@ interface ChatListProps {
 }
 
 const ChatList: React.FC<ChatListProps> = ( { conversationPreviews, onConversationSelect, onCreateNewConversation } ) => {
-  console.log('in ChatList');
-  console.log(conversationPreviews);
   const [showNewConversationField, setShowNewConversationField] = useState(false);
   const [newParticipant, setNewParticipant] = useState('');
 

@@ -9,7 +9,6 @@ interface ChatProps {
 }
 
 const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initialConversation }) => {
-  console.log('in Chat');
   const [messageState, setMessageState] = useState('');
   const [conversationState, setConversationState] = useState<Conversation | undefined>(initialConversation);
 
@@ -28,7 +27,6 @@ const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initi
         Content: messageState,
         ConvID: conversationState?.ID,
       };
-      console.log(`messageToSend to ${messageToSend.To} from ${messageToSend.From} and content ${messageToSend.Content}`);
       sendMessage(messageToSend);
       setMessageState('');
     }

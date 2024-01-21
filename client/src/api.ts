@@ -28,9 +28,7 @@ export async function register(username: string, password: string): Promise<void
     }
 }
 export const fetchUserConversations = async (): Promise<Conversation[] | null> => {
-    console.log('in fetchUserConversations');
     const token = localStorage.getItem('token');
-    console.log('in fetchUserConversations', token);
     try {
         if (!token) {
             throw new Error('No token found');
