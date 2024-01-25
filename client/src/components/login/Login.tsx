@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { login } from '../api'
+import { login } from '../../api'
 type LoginProps = {
   onLogin: (token: string) => void;
   setUsername: React.Dispatch<React.SetStateAction<string>>;
@@ -18,7 +18,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, setUsername }) => {
         const token = await login(usernameInput, password);
         onLogin(token);
       } catch(err) {
-        setError('Faild to login. Check your username and password');
+        setError('Failed to login. Check your username and password');
       }
     } else {
       setError('Enter both username and password');

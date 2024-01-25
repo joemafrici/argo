@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { register } from '../api';
+import { register } from '../../api';
 
 type RegisterProps = {
   onRegisterSuccess: () => void;

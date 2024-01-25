@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Message, Conversation } from '../types'
+import { Message, Conversation } from '../../types'
 
 
 interface ChatProps {

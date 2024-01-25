@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { ConversationPreview } from '../types';
+import { ConversationPreview } from '../../types';
 interface ChatListProps {
   conversationPreviews: ConversationPreview[];
   onConversationSelect: (conversationID: string) => void;
