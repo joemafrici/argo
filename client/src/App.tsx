@@ -63,19 +63,25 @@ function App() {
 
   return (
     <>
-      <ChatList 
-        conversationPreviews={conversationPreviews}
-        onConversationSelect={handleConversationSelect}
-        onCreateNewConversation={handleCreateNewConversation}
-      />
-      {selectedConversation &&
-        <Chat 
-          sendMessage={sendMessage}
-          username={username!}
-          conversation={selectedConversation}
-        />
-      }
-      <button onClick={handleAppLogout}>Logout</button>
+      <div className='flex h-screen bg-gray-100'>
+        <aside className='w-1/4 border-r'>
+          <ChatList 
+            conversationPreviews={conversationPreviews}
+            onConversationSelect={handleConversationSelect}
+            onCreateNewConversation={handleCreateNewConversation}
+          />
+        </aside>
+        <main className='w-3/4'>
+          {selectedConversation &&
+            <Chat 
+              sendMessage={sendMessage}
+              username={username!}
+              conversation={selectedConversation}
+            />
+          }
+          <button onClick={handleAppLogout}>Logout</button>
+        </main>
+      </div>
     </>
   )
 }

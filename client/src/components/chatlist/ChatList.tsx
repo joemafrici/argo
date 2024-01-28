@@ -35,16 +35,19 @@ const ChatList: React.FC<ChatListProps> = ( { conversationPreviews, onConversati
   return (
     <>
       <p>List of conversations</p>
-      <ul>{chatListUI}</ul>
+      <ul className='overflow-auto h-5/6'>{chatListUI}</ul>
+      <div className='h-1/6 bg-gray-100 p-4 flex items-center'>
       {showNewConversationField ? (
-        <div>
-          <input type='text' placeholder='Enter username' value={newParticipant}
+        <div className='flex-grow'>
+          <input className='border rounded p-2 w-full' type='text' placeholder='Enter username' value={newParticipant}
           onChange={(e) => setNewParticipant(e.target.value)}/>
-          <button onClick={handleNewConversationSubmit}>Create</button>
+          <button className='mt-2 bg-blue500 text-white py-2 px-4 rounded hover:bg-blue-600 w-full' 
+              onClick={handleNewConversationSubmit}>Create</button>
         </div>
       ) : (
-        <button onClick={handleCreateClick}>New Conversation</button> 
+        <button className='bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 w-full' onClick={handleCreateClick}>New Conversation</button> 
       )}
+      </div>
     </>
   );
 }

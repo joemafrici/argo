@@ -3,7 +3,7 @@ import { Message, Conversation } from '../../types'
 
 
 interface ChatProps {
-  sendMessage: (messag: Message) => void;
+  sendMessage: (message: Message) => void;
   username: string;
   conversation: Conversation | undefined;
 }
@@ -14,18 +14,13 @@ const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initi
 
   const handleSendMessage = () => {
     if (conversationState && messageState.trim() !== '') {
-      let to = '';
-      for (const user of conversationState.Participants) {
-        if (user !== username) {
-          to = user;
-        }
-      }
+      const recipient = conversationState.Participants.find(participant => participant != username);
       const messageToSend: Message = {
         ID: '',
-        To: to,
+        To: recipient || '',
         From: username,
         Content: messageState,
-        ConvID: conversationState?.ID,
+        ConvID: conversationState.ID,
       };
       sendMessage(messageToSend);
       setMessageState('');
@@ -40,19 +35,30 @@ const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initi
     return <div>Select a conversation to start chatting</div>;
   }
 
-  const conversationUI = conversationState.Messages.map((message) =>
-    <li key={message.ID}>
-      <p>{message.From}: {message.Content}</p>
-    </li>
+
+  const MessageList = () => (
+    <ul>
+      {conversationState?.Messages.map((message) => (
+        <li key={message.ID} className={`p-3 ${message.From === username ? 'bg-blue-100' : 'bg-gray 100'} my-1 mx-2 rounded-lg`}>
+          <p className='font-medium'>{message.From}:</p> 
+          <p>{message.Content}</p>
+        </li>
+      ))}
+    </ul>
   );
 
   return(
-    <section>
-      <h1>Conversation</h1>
-      <ul>{conversationUI}</ul>
-      <section>
-        <textarea rows={5} cols={10} value={messageState} onChange={e => setMessageState(e.target.value)} />
-        <button onClick={handleSendMessage}>Send</button>
+    <section className='flex flex-col h-full'>
+      <h1 className='text-xl font-bold p-4 border-b'>Conversation with {conversationState.Participants.join(',')}</h1>
+      <MessageList />
+      <section className='p-4 border-t bg-white'>
+        <textarea 
+          className='w-full p-2 border rounded-lg resize-none'
+          placeholder='Type a message...'
+          rows={3} value={messageState} onChange={e => setMessageState(e.target.value)} />
+        <button 
+          className='bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg mt-2'
+          onClick={handleSendMessage}>Send</button>
       </section>
     </section>
   );
