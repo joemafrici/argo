@@ -8,7 +8,7 @@ const useAuth = () => {
     localStorage.setItem('token', token);
     setIsLoggedIn(true)
   }, []);
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
     localStorage.removeItem('token');
     setIsLoggedIn(false);
   }, []);

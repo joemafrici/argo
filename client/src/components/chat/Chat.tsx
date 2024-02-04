@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react'
-import { Message, Conversation } from '../../types'
+import React, { useEffect, useState } from 'react';
+import { Message, Conversation } from '../../types';
+import MessageComponent from '../message/Message';
+import { deleteMessage, fetchConversation } from '../../api';
 
 
 interface ChatProps {
@@ -26,32 +28,49 @@ const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initi
       setMessageState('');
     }
   };
+  const handleMessageDelete = async (messageID: string, conversationID: string): Promise<void> => {
+    try {
+      await deleteMessage(messageID, conversationID);
+      const updatedConversation = await fetchConversation(conversationID);
+      if (updatedConversation) {
+        setConversationState(updatedConversation);
+      }
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+    }
+  };
 
   useEffect(() => {
     setConversationState(initialConversation);
   }, [initialConversation]);
 
   if (!conversationState) {
-    return <div>Select a conversation to start chatting</div>;
+    return (
+      <div className='flex items-center justify-center h-full'>
+        <span className='text-gray-500'>Select a conversation to start chatting</span>;
+      </div>
+    );
   }
 
-
   const MessageList = () => (
-    <ul>
+    <ul className='space-y-2 overflow-auto p-4'>
       {conversationState?.Messages.map((message) => (
-        <li key={message.ID} className={`p-3 ${message.From === username ? 'bg-blue-100' : 'bg-gray 100'} my-1 mx-2 rounded-lg`}>
-          <p className='font-medium'>{message.From}:</p> 
-          <p>{message.Content}</p>
-        </li>
+        <MessageComponent 
+          key={message.ID}
+          message={message}
+          onDelete={handleMessageDelete}
+          isOwnMessage={message.From === username}
+        />
       ))}
     </ul>
   );
 
   return(
-    <section className='flex flex-col h-full'>
-      <h1 className='text-xl font-bold p-4 border-b'>Conversation with {conversationState.Participants.join(',')}</h1>
+    <section className='flex flex-col h-full bg-white'>
+      <h1 className='text-xl font-bold p-4 border-b bg-gray-50'>
+        Conversation with {conversationState.Participants.join(',')}</h1>
       <MessageList />
-      <section className='p-4 border-t bg-white'>
+      <section className='p-4 border-t'>
         <textarea 
           className='w-full p-2 border rounded-lg resize-none'
           placeholder='Type a message...'

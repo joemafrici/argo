@@ -32,8 +32,8 @@ function App() {
     handleLogin(token);
     setShouldConnect(true);
   }, [handleLogin]);
-  const handleAppLogout = useCallback(() => {
-    handleLogout();
+  const handleAppLogout = useCallback( async () => {
+    await handleLogout();
     setShouldConnect(false);
   }, [handleLogout]);
 
@@ -64,14 +64,14 @@ function App() {
   return (
     <>
       <div className='flex h-screen bg-gray-100'>
-        <aside className='w-1/4 border-r'>
+        <aside className='w-1/3 border-r'>
           <ChatList 
             conversationPreviews={conversationPreviews}
             onConversationSelect={handleConversationSelect}
             onCreateNewConversation={handleCreateNewConversation}
           />
         </aside>
-        <main className='w-3/4'>
+        <main className='w-2/3'>
           {selectedConversation &&
             <Chat 
               sendMessage={sendMessage}

@@ -19,10 +19,11 @@ import (
 var (
 	// userConnections []UserConnection
 	clientsMu = &sync.RWMutex{}
-	clients = make(map[string]*websocket.Conn, 0)
-	dbname = "argodb"
-	dbclient *mongo.Client
+	clients   = make(map[string]*websocket.Conn, 0)
+	dbname    = "argodb"
+	dbclient  *mongo.Client
 )
+
 const (
 	timeoutDuration = 5
 )
@@ -58,13 +59,17 @@ func main() {
 	mux.Handle("/ws", loggingMiddleware(http.HandlerFunc(HandleWebSocket)))
 	mux.Handle("/api/register", loggingMiddleware(http.HandlerFunc(HandleRegister)))
 	mux.Handle("/api/login", loggingMiddleware(http.HandlerFunc(HandleLogin)))
+	//mux.Handle("/api/logout", loggingMiddleware(http.HandlerFunc(HandleLogout)))
 	mux.Handle("/api/conversations", loggingMiddleware(protectedEndpoint(HandleGetUserConversations)))
+	//mux.Handle("/api/conversation", loggingMiddleware(protectedEndpoint(HandleGetUserConversation)))
 	mux.Handle("/api/create-conversation", loggingMiddleware(protectedEndpoint(HandleCreateConversation)))
+	mux.Handle("/api/delete-message", loggingMiddleware(protectedEndpoint(HandleDeleteMessage)))
 	handler := corsMiddleware(mux)
 
 	log.Println("server listening on port", port)
 	log.Fatal(http.ListenAndServe(port, handler))
 }
+
 // ***********************************************
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -80,6 +85,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
+
 // ***********************************************
 func loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -88,6 +94,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 	})
 
 }
+
 // ***********************************************
 func protectedEndpoint(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +113,7 @@ func protectedEndpoint(handler http.HandlerFunc) http.HandlerFunc {
 		}
 	}
 }
+
 // ***********************************************
 func addMessageToConversation(message Message) error {
 	log.Println("in addMessageToConversation")
@@ -122,18 +130,37 @@ func addMessageToConversation(message Message) error {
 	log.Println("matched:", res.MatchedCount)
 	return err
 }
+
 // ***********************************************
 func closeConnection(conn *websocket.Conn) {
 	log.Println("in closeConnection")
 	message := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
-	//conn.SetWriteDeadline(time.Now().Add(timeoutDuration))
 	conn.WriteMessage(websocket.CloseMessage, message)
 
-	//conn.SetReadDeadline(time.Now().Add(timeoutDuration))
-	// if _, _, err := conn.NextReader(); err != nil {
-	// 	log.Println("error waiting for client close response:", err)
-	// }
+	err := conn.Close()
+	if err != nil {
+		log.Println("error closing WebSocket connection", err)
+	}
+	clientsMu.RLock()
+	log.Println(clients)
+	clientsMu.RUnlock()
 }
+
+// ***********************************************
+func getUserConversation(username string, id string) (Conversation, error) {
+	log.Println("in getUserConversation")
+
+	var conversation Conversation
+	collection := dbclient.Database(dbname).Collection("conversations")
+	filter := bson.M{"id": id}
+	err := collection.FindOne(context.TODO(), filter).Decode(&conversation)
+	if err != nil {
+		return Conversation{}, err
+	}
+
+	return conversation, nil
+}
+
 // ***********************************************
 func getUserConversations(username string) ([]Conversation, error) {
 	log.Println("in getUserConversations")
@@ -160,10 +187,11 @@ func getUserConversations(username string) ([]Conversation, error) {
 	}
 	return conversations, nil
 }
+
 // ***********************************************
 func getAllConversations(client *mongo.Client) ([]Conversation, error) {
 	log.Println("in getAllConversations")
-	ctx := context.TODO()	
+	ctx := context.TODO()
 
 	var conversations []Conversation
 	collection := client.Database(dbname).Collection("conversations")
