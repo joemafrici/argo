@@ -277,7 +277,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.Unmarshal(message, &authMessage); err != nil {
 		log.Println("Invalid authentication message")
-		conn.WriteMessage(websocket.CloseMessage, []byte("Invalid authentication"))
+		conn.WriteMessage(websocket.CloseMessage, []byte("Invalid authentication message"))
 		return
 	}
 
@@ -338,6 +338,7 @@ func HandleConnection(username string, conn *websocket.Conn) {
 			} else {
 				log.Println("ReadMessage:", err)
 			}
+			closeConnection(conn)
 			return
 		}
 
@@ -345,6 +346,8 @@ func HandleConnection(username string, conn *websocket.Conn) {
 		if err := json.Unmarshal(p, &echo); err != nil {
 			log.Println("Unmarshal", err)
 		}
+		
+		log.Println("Received message", echo.Content, "from", echo.From)
 
 		if echo.Timestamp == nil {
 			now := time.Now()
@@ -375,18 +378,33 @@ func HandleConnection(username string, conn *websocket.Conn) {
 		recipientConn, recipientExists := clients[echo.To]
 		echoConn, echoExists := clients[echo.From]
 		clientsMu.RUnlock()
+
 		if echoExists {
-			echoConn.WriteMessage(messageType, echoBytes)
+			echoConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := echoConn.WriteMessage(messageType, echoBytes); err != nil {
+				log.Println("Error writing message to echo connection:", err)
+				closeConnection(echoConn)
+				clientsMu.Lock()
+				delete(clients, echo.From)
+				clientsMu.Unlock()
+			}
 		} else {
 			log.Println(echo.From, "is not logged in")
 		}
 		if recipientExists {
-			recipientConn.WriteMessage(messageType, forwardBytes)
+			recipientConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := recipientConn.WriteMessage(messageType, forwardBytes); err != nil {
+				log.Println("Error writng message to recipient connection:", err)
+				closeConnection(recipientConn)
+				clientsMu.Lock()
+				delete(clients, echo.To)
+				clientsMu.Unlock()
+			}
 		} else {
 			log.Println(echo.To, "is not logged in")
 		}
 		if err := addMessageToConversation(forward); err != nil {
-			log.Println("addMessageToConversation", err)
+			utils.HandleDatabaseError(err)
 		}
 	}
 }

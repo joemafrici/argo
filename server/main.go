@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/joemafrici/argo/utils"
@@ -126,9 +128,17 @@ func addMessageToConversation(message Message) error {
 		},
 	}
 
-	res, err := coll.UpdateOne(context.TODO(), filter, update)
-	log.Println("matched:", res.MatchedCount)
-	return err
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	res, err := coll.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("error updating conversation: %w", err)
+	}
+	if res.MatchedCount == 0 {
+		return fmt.Errorf("no conversation found with id %s", message.ConvID)
+	}
+	return nil
 }
 
 // ***********************************************

@@ -6,14 +6,20 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
   const sockRef = useRef<WebSocket | null>(null);
   const [ retryCount, setRetryCount ] = useState(0);
   const timeoutIDRef = useRef<number | null>(null);
+  const messageQueueRef = useRef<any[]>([]);
 
   const sendMessage = useCallback((message: any) => {
     if (sockRef.current?.readyState === WebSocket.OPEN) {
+      console.log(`websocket open sending message ${message}`);
       sockRef.current.send(JSON.stringify(message));
+    } else {
+      console.log(`adding ${message} to queue`);
+      messageQueueRef.current.push(message);
     }
   }, []);
 
   const connectWebSocket = useCallback(() => {
+    console.log('in connectWebSocker');
     if (timeoutIDRef.current !== null) {
       clearTimeout(timeoutIDRef.current);
       timeoutIDRef.current = null;
@@ -31,6 +37,11 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
         newSocket.close();
         handleLogout();
       }
+
+      while (messageQueueRef.current.length > 0) {
+        console.log('sending message that was in queue');
+        sendMessage(messageQueueRef.current.shift());
+      }
     };
     newSocket.onmessage = (event) => {
       const data = JSON.parse(event.data)
@@ -41,14 +52,16 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
       }
     };
     newSocket.onclose = event => {
-      console.log("WebSocket closed", event);
+      console.log('WebSocket closed', event);
+      console.log('WebSocker readyState', newSocket.readyState);
       if (shouldConnect) {
-        console.log("Attempting to reconnect...");
+        console.log('Attempting to reconnect...');
         setRetryCount(prevRetryCount => prevRetryCount + 1);
       }
     }
     newSocket.onerror = event => {
-      console.error("WebSocket error", event);
+      console.error('WebSocket error', event);
+      console.error('WebSocket readyState', newSocket.readyState);
       newSocket.close();
     }
   }, [token, onMessage, sendMessage, shouldConnect]);

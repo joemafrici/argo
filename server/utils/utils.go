@@ -5,13 +5,44 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"go.mongodb.org/mongo-driver/mongo"
 )
+
+// ***********************************************
+func HandleDatabaseError(err error) {
+	if err == nil {
+		return
+	}
+
+	var netErr net.Error
+	var commandErr mongo.CommandError
+	var writeException mongo.WriteException
+
+	if errors.As(err, &netErr) {
+		if netErr.Timeout() {
+			log.Println("Network timeout error:", netErr)
+		} else {
+			log.Println("Network error:", netErr)
+		}
+	} else if errors.As(err, &commandErr) {
+		log.Println("MongoDB command error", commandErr)
+	} else if errors.As(err, &writeException) {
+		for _, writeErr := range writeException.WriteErrors {
+			if mongo.IsDuplicateKeyError(writeErr) {
+				log.Println("Duplicate key error:", writeErr)
+			}
+		}
+	} else {
+		log.Println("Unknown error:", err)
+	}
+}
 
 // ***********************************************
 func EnableCORS(w *http.ResponseWriter) {
@@ -20,6 +51,7 @@ func EnableCORS(w *http.ResponseWriter) {
 	(*w).Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	(*w).Header().Set("Access-Control-Allow-Credentials", "true")
 }
+
 // ***********************************************
 func ValidateTokenFromString(tokenString string) (string, error) {
 	jwtSecret, err := getJWTSecret()
@@ -50,6 +82,7 @@ func ValidateTokenFromString(tokenString string) (string, error) {
 
 	return "", errors.New("invalid token")
 }
+
 // ***********************************************
 func ValidateToken(r *http.Request) (*jwt.Token, error) {
 	authHeader := r.Header.Get("authorization")
@@ -80,13 +113,14 @@ func ValidateToken(r *http.Request) (*jwt.Token, error) {
 	return token, err
 
 }
+
 // ***********************************************
 func NewTokenString(username string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
-		"exp": time.Now().Add(time.Hour * 72).Unix(),
+		"exp":      time.Now().Add(time.Hour * 72).Unix(),
 	})
-	
+
 	secret, err := getJWTSecret()
 	if err != nil {
 		log.Fatal(err.Error())
@@ -94,6 +128,7 @@ func NewTokenString(username string) (string, error) {
 	tokenString, err := token.SignedString([]byte(secret))
 	return tokenString, err
 }
+
 // ***********************************************
 func RemoveDuplicates(e []string) []string {
 	encountered := map[string]bool{}
@@ -109,9 +144,10 @@ func RemoveDuplicates(e []string) []string {
 	}
 	return result
 }
+
 // ***********************************************
 func LoadSecret() error {
-	file, err := os.Open(".env")	
+	file, err := os.Open(".env")
 	if err != nil {
 		return err
 	}
@@ -124,6 +160,7 @@ func LoadSecret() error {
 	}
 	return s.Err()
 }
+
 // ***********************************************
 func getJWTSecret() (string, error) {
 	secret := os.Getenv("JWT_SECRET")
@@ -132,6 +169,7 @@ func getJWTSecret() (string, error) {
 	}
 	return secret, nil
 }
+
 // ***********************************************
 func PrintEnvVariables() {
 	for _, env := range os.Environ() {
