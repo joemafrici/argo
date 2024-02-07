@@ -2,7 +2,9 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { Message } from './../types';
 import handleLogout from './useAuth';
 
-export function useWebSocket(shouldConnect: boolean, token: string | null, onMessage: (newMessage: Message) => void) {
+export function useWebSocket(shouldConnect: boolean, token: string | null, onMessage: (newMessage: Message) => void,
+  onConversationUpdate: (updatedConversation: Conversation) => void
+) {
   const sockRef = useRef<WebSocket | null>(null);
   const [ retryCount, setRetryCount ] = useState(0);
   const timeoutIDRef = useRef<number | null>(null);
@@ -47,6 +49,8 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
       const data = JSON.parse(event.data)
       if (data.type && data.type === 'ping') {
         sendMessage({ type: 'pong' });
+      } else if (data.type && data.type === 'conversationUpdate') {
+        onConversationUpdate(data.conversation);
       } else {
         onMessage(data);
       }

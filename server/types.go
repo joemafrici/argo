@@ -21,6 +21,10 @@ type Conversation struct {
 	Participants []string  `bson:"participants"`
 	Messages     []Message `bson:"messages"`
 }
+type DeleteMessageResponse struct {
+	Type string `json:"type"`
+	Conversation Conversation `json:"conversation"`
+}
 //	type UserConnection struct {
 //		Username    string
 //		WebSocket *websocket.Conn

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Message, Conversation } from '../../types';
 import MessageComponent from '../message/Message';
-import { deleteMessage, fetchConversation } from '../../api';
+import { deleteMessage } from '../../api';
 
 
 interface ChatProps {
@@ -28,11 +28,12 @@ const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initi
       setMessageState('');
     }
   };
-  const handleMessageDelete = async (messageID: string, conversationID: string): Promise<void> => {
+  const handleDeleteMessage = async (messageID: string, conversationID: string): Promise<void> => {
     try {
-      await deleteMessage(messageID, conversationID);
-      const updatedConversation = await fetchConversation(conversationID);
+      const updatedConversation = await deleteMessage(messageID, conversationID);
       if (updatedConversation) {
+        console.log('updating conversation');
+        console.log(updatedConversation);
         setConversationState(updatedConversation);
       }
     } catch (error) {
@@ -58,7 +59,7 @@ const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initi
         <MessageComponent 
           key={message.ID}
           message={message}
-          onDelete={handleMessageDelete}
+          onDelete={handleDeleteMessage}
           isOwnMessage={message.From === username}
         />
       ))}

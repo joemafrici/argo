@@ -20,6 +20,7 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleDeleteMessage")
 
 	if r.Method != "DELETE" {
+		log.Println("Method not allowed")
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
@@ -30,7 +31,9 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&deleteRequest); err != nil {
+		log.Println("Bad request")
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		return // fairly certain I should be returning here
 	}
 
 	c := dbclient.Database(dbname).Collection("conversations")
@@ -52,9 +55,42 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Message deleted successfully"))
+	var updatedConversation Conversation
+	err = c.FindOne(context.TODO(), bson.M{"id": deleteRequest.ConversationID}).Decode(&updatedConversation)
+	if err != nil {
+		log.Println("Error fetching updated conversation:", err)
+		http.Error(w, "Failed to fetch updated conversation", http.StatusInternalServerError)
+		return
+	}
 
+	response := DeleteMessageResponse{
+		Type: "conversationUpdate",
+		Conversation: updatedConversation,
+	}
+	responseJSON, err := json.Marshal(response)
+	if err != nil {
+		log.Println("Error marshalling response:", err)
+		return
+	}
+	clientsMu.RLock()
+	for _, user := range updatedConversation.Participants {
+		ws, ok := clients[user]
+		if !ok {
+			log.Println("No WebSocket connection found for user:", user, err)
+			continue
+		}
+
+		if err := ws.WriteMessage(websocket.TextMessage, responseJSON); err != nil {
+			log.Println("Error sending message over WebSocket to user:", user, err)
+			continue
+		}
+	}
+	clientsMu.RUnlock()
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedConversation)
+	log.Println("Response sent")
 }
 
 // ***********************************************

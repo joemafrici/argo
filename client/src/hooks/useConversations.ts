@@ -21,6 +21,21 @@ const useConversations = (username: string, isLoggedIn: boolean) => {
       }
     }
   }, [username]);
+  const handleConversationUpdate = useCallback((updatedConversation: Conversation) => {
+    setConversations(prevConversations => {
+      const conversationIndex = prevConversations.findIndex(conv => conv.ID === updatedConversation.ID);
+      if (conversationIndex >= 0) {
+        const updatedConversations = [
+          ...prevConversations.slice(0, conversationIndex),
+          updatedConversation,
+          ...prevConversations.slice(conversationIndex + 1),
+        ];
+        return updatedConversations;
+      } else {
+        return [...prevConversations, updatedConversation];
+      }
+    });
+  }, []);
   const handleNewMessage = useCallback((newMessage: Message) => {
     console.log('in handleNewMessage');
     setConversations(prevConversations => {
@@ -90,6 +105,7 @@ const useConversations = (username: string, isLoggedIn: boolean) => {
     handleConversationSelect,
     handleCreateNewConversation,
     handleNewMessage,
+    handleConversationUpdate,
   };
 };
 export default useConversations;

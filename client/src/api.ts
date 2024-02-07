@@ -1,6 +1,6 @@
 import { Conversation } from './types'
 
-export async function deleteMessage(messageID: string, conversationID: string): Promise<void> {
+export async function deleteMessage(messageID: string, conversationID: string): Promise<Conversation> {
   const token = localStorage.getItem('token');
   try {
     if (!token) {

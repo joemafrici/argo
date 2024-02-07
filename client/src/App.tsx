@@ -26,6 +26,7 @@ function App() {
     handleConversationSelect,
     handleCreateNewConversation,
     handleNewMessage,
+    handleConversationUpdate,
   } = useConversations(username, isLoggedIn);
 
   const handleAppLogin = useCallback((token: string) => {
@@ -38,7 +39,7 @@ function App() {
   }, [handleLogout]);
 
   const token = localStorage.getItem('token');
-  const { sendMessage } = useWebSocket(shouldConnect, token, handleNewMessage);
+  const { sendMessage } = useWebSocket(shouldConnect, token, handleNewMessage, handleConversationUpdate);
 
   const selectedConversation = conversations.find(c => c.ID === selectedConversationID);
 
