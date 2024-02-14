@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { register } from '../../api';
 
 type RegisterProps = {
-  onRegisterSuccess: () => void;
+  onRegister: (username: string, password: string) => void;
   setUsername: React.Dispatch<React.SetStateAction<string>>;
 };
 
-const Register: React.FC<RegisterProps> = ({ onRegisterSuccess: onRegisterSuccess, setUsername }) => {
+const Register: React.FC<RegisterProps> = ({ onRegister, setUsername }) => {
   const [usernameInput, setUsernameInput] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -16,8 +15,8 @@ const Register: React.FC<RegisterProps> = ({ onRegisterSuccess: onRegisterSucces
     setUsername(usernameInput);
     if (usernameInput && password) {
       try {
-        await register(usernameInput, password);
-        onRegisterSuccess();
+        //await register(usernameInput, password);
+        onRegister(usernameInput, password);
       } catch (err) {
         setError('Failed to register');
       } 

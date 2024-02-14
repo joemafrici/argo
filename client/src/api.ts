@@ -1,4 +1,4 @@
-import { Conversation } from './types'
+import { Conversation, LoginResponse } from './types'
 
 export async function deleteMessage(messageID: string, conversationID: string): Promise<Conversation> {
   const token = localStorage.getItem('token');
@@ -30,7 +30,7 @@ export async function deleteMessage(messageID: string, conversationID: string): 
     }
   }
 }
-export async function login(username: string, password: string): Promise<string> {
+export async function login(username: string, password: string): Promise<LoginResponse> {
   const response = await fetch('http://localhost:3001/api/login', {
     method: 'POST',
     headers: {
@@ -42,8 +42,8 @@ export async function login(username: string, password: string): Promise<string>
     throw new Error('Failed to login');
   }
 
-  const data = await response.json();
-  return data.token;
+  const resp: LoginResponse = await response.json();
+  return resp;
 }
 export async function logout(): Promise<void> {
   const token = localStorage.getItem('token');
@@ -77,6 +77,7 @@ export async function register(username: string, password: string): Promise<void
     headers: {
       'Content-Type': 'application/json',
     },
+    //TODO: need to add key pair to send to server
     body: JSON.stringify({ username, password }),
   });
   if (!response.ok) {

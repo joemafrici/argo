@@ -19,3 +19,10 @@ export interface ConversationPreview {
   ID: string;
   MostRecentMessage: Message;
 }
+export interface LoginResponse {
+  token: string,
+  keys: {
+    public: string,
+    encryptedPrivate: string,
+  };
+}

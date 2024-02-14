@@ -8,6 +8,7 @@ import { useWebSocket } from './hooks/useWebSocket'
 import useAuth from './hooks/useAuth'
 import useConversations from './hooks/useConversations'
 import { getUsernameFromToken } from './utils'
+import { LoginResponse } from './types'
 
 function App() {
   const [username, setUsername] = useState<string>('');
@@ -17,7 +18,7 @@ function App() {
     registerSuccessMessage,
     handleLogin,
     handleLogout,
-    handleRegisterSuccess
+    handleRegister, 
   } = useAuth();
   const {
     conversations,
@@ -29,8 +30,8 @@ function App() {
     handleConversationUpdate,
   } = useConversations(username, isLoggedIn);
 
-  const handleAppLogin = useCallback((token: string) => {
-    handleLogin(token);
+  const handleAppLogin = useCallback((resp: LoginResponse) => {
+    handleLogin(resp);
     setShouldConnect(true);
   }, [handleLogin]);
   const handleAppLogout = useCallback( async () => {
@@ -57,7 +58,7 @@ function App() {
     return (
       <> 
       { registerSuccessMessage && <div>{registerSuccessMessage}</div> }
-      <Register setUsername={setUsername} onRegisterSuccess={handleRegisterSuccess}/>
+      <Register setUsername={setUsername} onRegister={handleRegister}/>
       <Login setUsername={setUsername} onLogin={handleAppLogin}/>
     </>);
   }
@@ -87,4 +88,4 @@ function App() {
   )
 }
 
-export default App
+export default App;
