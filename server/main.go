@@ -66,6 +66,7 @@ func main() {
 	//mux.Handle("/api/conversation", loggingMiddleware(protectedEndpoint(HandleGetUserConversation)))
 	mux.Handle("/api/create-conversation", loggingMiddleware(protectedEndpoint(HandleCreateConversation)))
 	mux.Handle("/api/delete-message", loggingMiddleware(protectedEndpoint(HandleDeleteMessage)))
+	mux.Handle("/api/keys", loggingMiddleware(protectedEndpoint(HandleSendKeys)))
 	handler := corsMiddleware(mux)
 
 	log.Println("server listening on port", port)

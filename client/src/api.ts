@@ -43,6 +43,7 @@ export async function login(username: string, password: string): Promise<LoginRe
   }
 
   const resp: LoginResponse = await response.json();
+  console.log(resp);
   return resp;
 }
 export async function logout(): Promise<void> {
@@ -71,14 +72,13 @@ export async function logout(): Promise<void> {
     }
   }
 }
-export async function register(username: string, password: string): Promise<void> {
+export async function register(username: string, password: string, publicKey: string, encryptedPrivateKey: string): Promise<void> {
   const response = await fetch('http://localhost:3001/api/register', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    //TODO: need to add key pair to send to server
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, publicKey, encryptedPrivateKey }),
   });
   if (!response.ok) {
     throw new Error('Failed to register');
@@ -154,5 +154,30 @@ export const fetchNewConversation = async (creatorUsername: string, participantU
   } catch (error) {
     console.error('Failed to create new conversation', error);
     return null;
+  }
+}
+export async function sendKeys(publicKey: JsonWebKey, encryptedPrivateKey: string): Promise<void> {
+  const token = localStorage.getItem('token');
+  try {
+    if (!token) {
+      throw new Error('token not found');
+    } 
+    const response = await fetch(`http://localhost:3001/api/keys`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${token}'
+      },
+      body: JSON.stringify({ publicKey, encryptedPrivateKey }),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to send keys');
+    }
+  } catch (err) {
+    if (err instanceof Error) {
+      throw new Error(err.message);
+    } else {
+      throw new Error('An unknown error occurred');
+    }
   }
 }

@@ -21,7 +21,9 @@ db.$COLLECTION.insertOne({
 });
 db.users.insertOne({
     username: 'testUser',
-    passwordHash: 'this wont work'
+    passwordHash: 'this wont work',
+	publicKey: '',
+	encryptedPrivateKey: ''
 });
 "
 echo "Database reset and default data inserted successfully."

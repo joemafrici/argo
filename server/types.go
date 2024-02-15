@@ -5,15 +5,17 @@ import (
 )
 
 type User struct {
-	Username string `bson:"username"`
-	Password string `bson:"password"`
+	Username            string `bson:"username"`
+	Password            string `bson:"password"`
+	PublicKey           string `bson:"publicKey"`
+	EncryptedPrivateKey string `bson:"encryptedPrivateKey"`
 }
 type Message struct {
-	ID        string    `bson:"id"`
-	ConvID string `bson:"convid"`
-	To        string    `bson:"to"`
-	From      string    `bson:"from"`
-	Content   string    `bson:"content"`
+	ID        string     `bson:"id"`
+	ConvID    string     `bson:"convid"`
+	To        string     `bson:"to"`
+	From      string     `bson:"from"`
+	Content   string     `bson:"content"`
 	Timestamp *time.Time `bson:"timestamp,omitempty"`
 }
 type Conversation struct {
@@ -22,9 +24,20 @@ type Conversation struct {
 	Messages     []Message `bson:"messages"`
 }
 type DeleteMessageResponse struct {
-	Type string `json:"type"`
+	Type         string       `json:"type"`
 	Conversation Conversation `json:"conversation"`
 }
+type LoginResponse struct {
+	Token string `json:"token"`
+	Keys struct {
+		Public string `json:"public"`
+		EncryptedPrivate string `json:"encryptedPrivate"`
+	} `json:"keys"`
+}
+// type Keys struct {
+// 	PublicKey string `json:"publicKey"`
+// 	EncryptedPrivateKey string `json:"encryptedPrivateKey"`
+// }
 //	type UserConnection struct {
 //		Username    string
 //		WebSocket *websocket.Conn

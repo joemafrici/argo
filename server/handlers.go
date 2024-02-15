@@ -16,6 +16,48 @@ import (
 )
 
 // ***********************************************
+func HandleSendKeys(w http.ResponseWriter, r *http.Request) {
+	log.Println("in HandleSendKeys")
+
+	if r.Method != "POST" {
+		log.Println("Method not allowed")
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var keysRequest struct {
+		PublicKey string `json:"publicKey"`
+		EncryptedPrivateKey string `json:"encryptedPrivateKey"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&keysRequest); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	username, ok := r.Context().Value("username").(string)
+	if !ok {
+		http.Error(w, "Invalid user context", http.StatusInternalServerError)
+		return
+	}
+
+	c := dbclient.Database(dbname).Collection("users")
+	f := bson.M{"username": username}
+	u := bson.M{
+		"$set": bson.M{
+			"publicKey": keysRequest.PublicKey,
+			"encryptedPrivateKey": keysRequest.EncryptedPrivateKey,
+		},
+	}
+
+	_, err := c.UpdateOne(context.TODO(), f, u)
+	if err != nil {
+		http.Error(w, "Failed to store keys", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+// ***********************************************
 func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleDeleteMessage")
 
@@ -97,7 +139,12 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleRegister")
 
-	var newUser User
+	var newUser struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+		PublicKey string `json:"publicKey"`
+		EncryptedPrivateKey string `json:"encryptedPrivateKey"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&newUser); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -118,9 +165,15 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Server Error", http.StatusInternalServerError)
 		return
 	}
-	newUser.Password = string(hashedPassword)
 
-	_, err = dbclient.Database(dbname).Collection("users").InsertOne(context.TODO(), newUser)
+	userToInsert := User{
+		Username: newUser.Username,
+		Password: string(hashedPassword),
+		PublicKey: newUser.PublicKey,
+		EncryptedPrivateKey: newUser.EncryptedPrivateKey,
+	}
+
+	_, err = dbclient.Database(dbname).Collection("users").InsertOne(context.TODO(), userToInsert)
 	if err != nil {
 		http.Error(w, "Failed to create new user", http.StatusInternalServerError)
 		return
@@ -128,7 +181,6 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 }
-
 // ***********************************************
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleLogin")
@@ -157,7 +209,18 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+	response := LoginResponse{
+		Token: tokenString,
+		Keys: struct{
+			Public string `json:"public"` 
+			EncryptedPrivate string `json:"encryptedPrivate"`
+		}{
+			Public: storedUser.PublicKey,
+			EncryptedPrivate: storedUser.EncryptedPrivateKey,
+		},
+	}
+
+	json.NewEncoder(w).Encode(response)
 }
 // ***********************************************
 // This function is not needed right now.
