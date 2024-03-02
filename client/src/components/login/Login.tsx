@@ -1,16 +1,25 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { login } from '../../api'
 import { LoginResponse } from '../../types';
 
 type LoginProps = {
   onLogin: (resp: LoginResponse) => void;
   setUsername: React.Dispatch<React.SetStateAction<string>>;
+  isLoggedIn: boolean;
+  setTempPassword: React.Dispatch<React.SetStateAction<string>>
 };
 
-const Login: React.FC<LoginProps> = ({ onLogin, setUsername }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, setUsername, isLoggedIn, setTempPassword }) => {
   const [usernameInput, setUsernameInput] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  
+  // useEffect(() => {
+  //   if (isLoggedIn && password) {
+  //     setTempPassword(password);
+  //     setPassword('');
+  //   }
+  // }, [isLoggedIn, password]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -19,6 +28,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, setUsername }) => {
       try {
         const resp: LoginResponse = await login(usernameInput, password);
         onLogin(resp);
+        console.log('Before setTempPassword in Login', { isLoggedIn, password });
+        setTempPassword(password);
+        setPassword('');
       } catch(err) {
         setError('Failed to login. Check your username and password');
       }

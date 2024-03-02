@@ -9,6 +9,7 @@ import useAuth from './hooks/useAuth'
 import useConversations from './hooks/useConversations'
 import { getUsernameFromToken } from './utils'
 import { LoginResponse } from './types'
+import useEncryption from './hooks/useEncryption'
 
 function App() {
   const [username, setUsername] = useState<string>('');
@@ -29,6 +30,10 @@ function App() {
     handleNewMessage,
     handleConversationUpdate,
   } = useConversations(username, isLoggedIn);
+  const { setTempPassword } = useEncryption(isLoggedIn);
+  const {
+    encryptMessage,
+  } = useEncryption(isLoggedIn);
 
   const handleAppLogin = useCallback((resp: LoginResponse) => {
     handleLogin(resp);
@@ -59,7 +64,7 @@ function App() {
       <> 
       { registerSuccessMessage && <div>{registerSuccessMessage}</div> }
       <Register setUsername={setUsername} onRegister={handleRegister}/>
-      <Login setUsername={setUsername} onLogin={handleAppLogin}/>
+      <Login setUsername={setUsername} onLogin={handleAppLogin} isLoggedIn={isLoggedIn} setTempPassword={setTempPassword}/>
     </>);
   }
 
@@ -79,6 +84,7 @@ function App() {
               sendMessage={sendMessage}
               username={username!}
               conversation={selectedConversation}
+              encryptMessageHandler={encryptMessage}
             />
           }
           <button onClick={handleAppLogout}>Logout</button>

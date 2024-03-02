@@ -16,6 +16,46 @@ import (
 )
 
 // ***********************************************
+func HandleSendSalt(w http.ResponseWriter, r *http.Request) {
+	log.Println("in HandleSalt")
+
+	if r.Method != "POST" {
+		log.Println("Method not allowed")
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var saltRequest struct {
+		Salt string `json:"salt"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&saltRequest); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	username, ok := r.Context().Value("username").(string)
+	if !ok {
+		http.Error(w, "Invalid user context", http.StatusInternalServerError)
+		return
+	}
+
+	c := dbclient.Database(dbname).Collection("users")
+	f := bson.M{"username": username}
+	u := bson.M{
+		"$set": bson.M{
+			"salt": saltRequest.Salt,
+		},
+	}
+
+	_, err := c.UpdateOne(context.TODO(), f, u)
+	if err != nil {
+		http.Error(w, "Failed to store salt", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+// ***********************************************
 func HandleSendKeys(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleSendKeys")
 
@@ -397,7 +437,6 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Println(username, "authenticated")
 	go HandleConnection(username, conn)
 }
-
 // ***********************************************
 func HandleConnection(username string, conn *websocket.Conn) {
 	log.Println("in HandleConnection")

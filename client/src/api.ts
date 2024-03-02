@@ -1,4 +1,5 @@
 import { Conversation, LoginResponse } from './types'
+import { arrayBufferToBase64 } from './utils';
 
 export async function deleteMessage(messageID: string, conversationID: string): Promise<Conversation> {
   const token = localStorage.getItem('token');
@@ -15,8 +16,6 @@ export async function deleteMessage(messageID: string, conversationID: string): 
       body: JSON.stringify({ conversationID, messageID }),
     });
     
-    console.log(response.ok);
-
     if (!response.ok) {
       throw new Error('Failed to delete message');
     }
@@ -43,7 +42,6 @@ export async function login(username: string, password: string): Promise<LoginRe
   }
 
   const resp: LoginResponse = await response.json();
-  console.log(resp);
   return resp;
 }
 export async function logout(): Promise<void> {
@@ -158,26 +156,42 @@ export const fetchNewConversation = async (creatorUsername: string, participantU
 }
 export async function sendKeys(publicKey: JsonWebKey, encryptedPrivateKey: string): Promise<void> {
   const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('token not found');
+  } 
+  const response = await fetch(`http://localhost:3001/api/keys`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ publicKey, encryptedPrivateKey }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to send keys');
+  }
+}
+export async function sendSalt(salt: ArrayBuffer): Promise<void> {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('token not found');
+  }
+  let saltBase64;
   try {
-    if (!token) {
-      throw new Error('token not found');
-    } 
-    const response = await fetch(`http://localhost:3001/api/keys`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${token}'
-      },
-      body: JSON.stringify({ publicKey, encryptedPrivateKey }),
-    });
-    if (!response.ok) {
-      throw new Error('Failed to send keys');
-    }
+    saltBase64 = arrayBufferToBase64(salt);
   } catch (err) {
-    if (err instanceof Error) {
-      throw new Error(err.message);
-    } else {
-      throw new Error('An unknown error occurred');
-    }
+    throw new Error('Failed to convert salt to base64: ' + err);    
+  }
+
+  const response = await fetch('http://localhost:3001/api/salt', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ salt: saltBase64 }),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to send salt');
   }
 }

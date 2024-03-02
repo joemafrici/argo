@@ -15,6 +15,14 @@ export interface Message {
   Content: string;
   Timestamp?: Date;
 }
+export interface AuthenticateMessage {
+  type: 'authenticate';
+  token: string;
+}
+export interface PongMessage {
+  type: 'pong';
+}
+export type SystemMessage = AuthenticateMessage | PongMessage;
 export interface ConversationPreview {
   ID: string;
   MostRecentMessage: Message;

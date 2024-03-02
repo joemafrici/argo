@@ -37,7 +37,6 @@ const useConversations = (username: string, isLoggedIn: boolean) => {
     });
   }, []);
   const handleNewMessage = useCallback((newMessage: Message) => {
-    console.log('in handleNewMessage');
     setConversations(prevConversations => {
       const conversationIndex = prevConversations.findIndex(conv => conv.ID === newMessage.ConvID);
       if (conversationIndex >= 0) {

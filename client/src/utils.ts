@@ -5,6 +5,7 @@ interface Token extends JwtPayload {
   username: string;
 }
 
+//************************************************
 export const getUsernameFromToken = () => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -27,7 +28,7 @@ export const getUsernameFromToken = () => {
   }
   return '';
 }
-
+//************************************************
 export async function generateKeyPair(): Promise<CryptoKeyPair | null> {
   try {
     const keyPair = await window.crypto.subtle.generateKey(
@@ -46,7 +47,47 @@ export async function generateKeyPair(): Promise<CryptoKeyPair | null> {
     return null;
   }
 }
-export function base64ToArrayBuffer(base64: string): ArrayBuffer | null {
+//************************************************
+export async function storeKeyPair(publicKey: CryptoKey, encryptedPrivateKey: string): Promise<void> {
+  try {
+    const db = await openDB('database', 1, {
+      upgrade(db) {
+        db.createObjectStore('keys', { keyPath: 'id'});
+      },
+    });
+    
+    await db.put('keys', { id: 'publicKey', key: publicKey});
+    await db.put('keys', { id: 'privateKey', key: encryptedPrivateKey});
+
+  } catch (error) {
+    console.error('Failed to store key pairs:', error);
+  }
+}
+//************************************************
+async function retrieveKeyPair(): Promise<{ publicKey: CryptoKey, encryptedPrivateKey: string }> {
+  try {
+    const db = await openDB('database', 1, {
+      upgrade(db) {
+        db.createObjectStore('keys', { keyPath: 'id' });
+      },
+    }); 
+
+    const publicKey = await db.get('keys', 'publicKey');
+    const encryptedPrivateKey = await db.get('keys', 'privateKey');
+
+    if (publicKey && publicKey.key && encryptedPrivateKey && encryptedPrivateKey.key) {
+      return { publicKey: publicKey.key, encryptedPrivateKey: encryptedPrivateKey.key };
+    } else {
+      throw new Error('No key pair found');
+    }
+
+  } catch (err) {
+    console.error('Failed to retrieve key pair:', err);
+    throw err;  
+  }
+}
+//************************************************
+export function base64ToArrayBuffer(base64: string): ArrayBuffer {
   try {
     const binaryString = window.atob(base64);
     const len = binaryString.length;
@@ -56,11 +97,11 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer | null {
     }
     return bytes.buffer;
   } catch (err) {
-    console.error('Failed to convert base64 to ArrayBuffer:', err); 
-    return null;
+    throw new Error('Failed to convert base64 to ArrayBuffer: ' + err);
   }
 }
-export function arrayBufferToBase64(buffer: ArrayBuffer): string | null {
+//************************************************
+export function arrayBufferToBase64(buffer: ArrayBuffer): string {
   try {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -69,28 +110,12 @@ export function arrayBufferToBase64(buffer: ArrayBuffer): string | null {
     }
     return window.btoa(binary);
   } catch (err) {
-    console.error('Failed to convert ArrayBuffer to base64:', err); 
-    return null;
+    throw new Error('Failed to convert ArrayBuffer to base64: ' + err);
   }
 }
-export async function storeKeyPair(publicKey: CryptoKey, encryptedPrivateKey: string): Promise<void> {
-  try {
-    const db = await openDB('database', 1, {
-      upgrade(db) {
-        db.createObjectStore('keys', { keyPath: 'id'});
-      },
-    });
-    
-    const exportedPublicKey = await window.crypto.subtle.exportKey('spki', publicKey);    
-
-    await db.put('keys', { id: 'public key', key: exportedPublicKey});
-    await db.put('keys', { id: 'private key', key: encryptedPrivateKey});
-
-  } catch (error) {
-    console.error('Failed to store key pairs:', error);
-  }
-}
-export async function importPublicKey(keyData: string): Promise<CryptoKey | null> {
+//************************************************
+// Transforms keyData into CryptoKey object for use in Web Cryptogrophy API
+export async function createPublicCryptoKey(keyData: string): Promise<CryptoKey | null> {
   try {
     const keyBuffer: ArrayBuffer | null = base64ToArrayBuffer(keyData);
     if (keyBuffer) {
@@ -106,13 +131,14 @@ export async function importPublicKey(keyData: string): Promise<CryptoKey | null
       );
       return pubKey;
     }
-    throw "keyBuffer is null";
-  
+    throw new Error("keyBuffer is null");
   } catch (err) {
     console.error('Failed to import public key:', err);    
     return null;
   }
 }
+//************************************************
+// Uses password to encrypt private key privKey
 export async function encryptPrivateKey(privKey: CryptoKey, password: string): Promise<string | null> {
   try {
     const privKeyBuffer = await window.crypto.subtle.exportKey('pkcs8', privKey);
@@ -151,6 +177,9 @@ export async function encryptPrivateKey(privKey: CryptoKey, password: string): P
     return null;
   }
 }
+//************************************************
+// Decrypts a private key, encryptedData, that was encrypted using 
+// encryptPrivateKey and password
 export async function decryptPrivateKey(encryptedData: string, password: string): Promise<CryptoKey | null> {
   try {
     const dataBuffer = base64ToArrayBuffer(encryptedData);
@@ -196,4 +225,8 @@ export async function decryptPrivateKey(encryptedData: string, password: string)
     console.error('Failed to decrypt private key:', err);
     return null;
   }
+}
+//************************************************
+export function generateSalt(): Uint8Array {
+  return window.crypto.getRandomValues(new Uint8Array(16));
 }

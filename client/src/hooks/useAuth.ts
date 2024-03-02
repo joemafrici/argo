@@ -1,24 +1,25 @@
 import { useState, useCallback } from 'react'
 import { LoginResponse } from '../types';
-import { arrayBufferToBase64, encryptPrivateKey, importPublicKey, storeKeyPair } from '../utils';
+import { arrayBufferToBase64, encryptPrivateKey, createPublicCryptoKey, storeKeyPair } from '../utils';
 import { register } from '../api';
 
 const useAuth = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(!!localStorage.getItem('token'));
   const [registerSuccessMessage, setRegisterSuccessMessage] = useState<string>('');
 
+
   const handleLogin = useCallback(async (resp: LoginResponse) => {
     try {
       localStorage.setItem('token', resp.token);
-      const pubKey: CryptoKey | null = await importPublicKey(resp.keys.public);
-      if (pubKey) {
+      const pubKey: CryptoKey | null = await createPublicCryptoKey(resp.keys.public);
+      if (pubKey && resp.keys.encryptedPrivate) {
         await storeKeyPair(pubKey, resp.keys.encryptedPrivate);
-        setIsLoggedIn(true)
+        setIsLoggedIn(true);
       } else {
         throw new Error('Failed to import public key');
       }
     } catch (err) {
-      setIsLoggedIn(false)
+      setIsLoggedIn(false);
       console.error('Failed to log in', err);
     }
   }, []);

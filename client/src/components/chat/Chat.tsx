@@ -8,32 +8,37 @@ interface ChatProps {
   sendMessage: (message: Message) => void;
   username: string;
   conversation: Conversation | undefined;
+  encryptMessageHandler: (message: string) => Promise<string>;
 }
 
-const Chat: React.FC<ChatProps> = ( { sendMessage, username, conversation: initialConversation }) => {
+const Chat: React.FC<ChatProps> = ({ sendMessage, username, conversation: initialConversation, encryptMessageHandler }) => {
   const [messageState, setMessageState] = useState('');
   const [conversationState, setConversationState] = useState<Conversation | undefined>(initialConversation);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (conversationState && messageState.trim() !== '') {
       const recipient = conversationState.Participants.find(participant => participant != username);
-      const messageToSend: Message = {
-        ID: '',
-        To: recipient || '',
-        From: username,
-        Content: messageState,
-        ConvID: conversationState.ID,
-      };
-      sendMessage(messageToSend);
-      setMessageState('');
+      try {
+        const encryptedContent = await encryptMessageHandler(messageState);
+        const messageToSend: Message = {
+          ID: '',
+          To: recipient || '',
+          From: username,
+          Content: encryptedContent,
+          ConvID: conversationState.ID,
+        };
+        console.log('sending message: ', messageToSend);
+        sendMessage(messageToSend);
+        setMessageState('');
+      } catch (err) {
+        console.error('Failed to encrypt message:', err);  
+      }
     }
   };
   const handleDeleteMessage = async (messageID: string, conversationID: string): Promise<void> => {
     try {
       const updatedConversation = await deleteMessage(messageID, conversationID);
       if (updatedConversation) {
-        console.log('updating conversation');
-        console.log(updatedConversation);
         setConversationState(updatedConversation);
       }
     } catch (error) {
