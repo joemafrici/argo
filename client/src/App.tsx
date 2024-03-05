@@ -10,6 +10,7 @@ import useConversations from './hooks/useConversations'
 import { getUsernameFromToken } from './utils'
 import { LoginResponse } from './types'
 import useEncryption from './hooks/useEncryption'
+import { Message } from './types'
 
 function App() {
   const [username, setUsername] = useState<string>('');
@@ -33,6 +34,7 @@ function App() {
   const { setTempPassword } = useEncryption(isLoggedIn);
   const {
     encryptMessage,
+    decryptMessageRef,
   } = useEncryption(isLoggedIn);
 
   const handleAppLogin = useCallback((resp: LoginResponse) => {
@@ -45,7 +47,20 @@ function App() {
   }, [handleLogout]);
 
   const token = localStorage.getItem('token');
-  const { sendMessage } = useWebSocket(shouldConnect, token, handleNewMessage, handleConversationUpdate);
+
+  const handleEncryptedMessage = useCallback(async (encryptedMessage: Message) => {
+    try {
+      const decryptedContent = await decryptMessageRef.current(encryptedMessage.Content);
+      const decryptedMessage: Message = {
+        ...encryptedMessage,
+        Content: decryptedContent
+      }
+      handleNewMessage(decryptedMessage);
+    } catch (err) {
+      console.error('Failed to decrypt message:', err);      
+    }
+  }, [decryptMessageRef, handleNewMessage]);
+  const { sendMessage } = useWebSocket(shouldConnect, token, handleEncryptedMessage, handleConversationUpdate, decryptMessageRef.current);
 
   const selectedConversation = conversations.find(c => c.ID === selectedConversationID);
 

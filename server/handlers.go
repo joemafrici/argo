@@ -526,6 +526,7 @@ func HandleConnection(username string, conn *websocket.Conn) {
 				delete(clients, echo.From)
 				clientsMu.Unlock()
 			}
+			log.Println("echoed: ", echo)
 		} else {
 			log.Println(echo.From, "is not logged in")
 		}

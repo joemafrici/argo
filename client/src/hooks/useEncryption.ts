@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { arrayBufferToBase64, base64ToArrayBuffer, generateSalt } from '../utils';
 import { sendSalt } from '../api';
 import { useDerivedKey } from '../contexts/DerivedKey';
@@ -6,16 +6,38 @@ import { useDerivedKey } from '../contexts/DerivedKey';
 const useEncryption = (isLoggedIn: boolean) => {
   const [tempPassword, setTempPassword] = useState<string>('');
   const { derivedKey, setDerivedKey } = useDerivedKey();
+  const decryptMessage = useCallback(async (combinedBase64: string): Promise<string> => {
+    console.log('in decryptMessage.. derived key:', derivedKey);
+    if (!derivedKey) {
+      throw new Error('Derived key is not set');
+    }
+    const combined = base64ToArrayBuffer(combinedBase64);
+    console.log('converted to ArrayBuffer');
+    const iv = combined.slice(0, 12);
+    console.log('got iv');
+    const encryptedMessage = combined.slice(12);
+    console.log('got encrypted message');
+    const decryptedMessage = await window.crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: iv,},
+      derivedKey,
+      encryptedMessage
+    );
+    console.log('decrypted message');
+
+    return new TextDecoder().decode(decryptedMessage);
+  }, [derivedKey]);
+  const decryptMessageRef = useRef(decryptMessage);
+
+  useEffect(() => {
+    decryptMessageRef.current = decryptMessage;
+  }, [decryptMessage]);
 
   useEffect(() => {
     const generateAndSetDerivedKey = async () => {
       if (isLoggedIn && tempPassword) {
         const salt = generateSalt();
         const derivedKeyTemp = await generateDerivedKey(tempPassword, salt);
-        //setDerivedKey(derivedKeyTemp);
-        console.log('setting derived key..');
         setDerivedKey(derivedKeyTemp);
-        console.log('derived key: ', derivedKey);
         sendSalt(salt);
         setTempPassword('');
       }
@@ -120,27 +142,11 @@ const useEncryption = (isLoggedIn: boolean) => {
       throw new Error('Failed to convert encrypted message to base64: ' + err);
     }
   }
-  const decryptMessage = async (combined: ArrayBuffer): Promise<string> => {
-    console.log('in decryptMessage.. derived key:', derivedKey);
-    if (!derivedKey) {
-      throw new Error('Derived key is not set');
-    }
-
-    const iv = combined.slice(0, 12);
-    const encryptedMessage = combined.slice(12);
-    const decryptedMessage = await window.crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: iv,},
-      derivedKey,
-      encryptedMessage
-    );
-
-    return new TextDecoder().decode(decryptedMessage);
-  }
 
   return {
     generateDerivedKey,
     encryptMessage,
-    decryptMessage,
+    decryptMessageRef,
     encryptPrivateKey,
     decryptPrivateKey,
     setTempPassword,

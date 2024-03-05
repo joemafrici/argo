@@ -1,16 +1,17 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Message, SystemMessage, Conversation } from './../types';
 import handleLogout from './useAuth';
-import useEncryption from '../hooks/useEncryption';
 
-export function useWebSocket(shouldConnect: boolean, token: string | null, onMessage: (newMessage: Message) => void,
-  onConversationUpdate: (updatedConversation: Conversation) => void
+export function useWebSocket(shouldConnect: boolean,
+  token: string | null, 
+  onMessage: (newMessage: Message, decryptMessage: (message: string) => Promise<string>) => void,
+  onConversationUpdate: (updatedConversation: Conversation) => void,
+  decryptMessage: (message: string) => Promise<string>
 ) {
   const sockRef = useRef<WebSocket | null>(null);
   const [ retryCount, setRetryCount ] = useState(0);
   const timeoutIDRef = useRef<number | null>(null);
   const messageQueueRef = useRef<Message[]>([]);
-  const { decryptMessage } = useEncryption();
 
   const sendMessage = useCallback((message: Message) => {
     if (sockRef.current?.readyState === WebSocket.OPEN) {
@@ -29,7 +30,7 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
   }, []);
 
   const connectWebSocket = useCallback(() => {
-    console.log('in connectWebSocker');
+    console.log('in connectWebSocket');
     if (timeoutIDRef.current !== null) {
       clearTimeout(timeoutIDRef.current);
       timeoutIDRef.current = null;
@@ -64,19 +65,7 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
       } else if (data.type && data.type === 'conversationUpdate') {
         onConversationUpdate(data.conversation);
       } else {
-        try {
-          // TODO: need to determine the form of the Message the client
-          // is receiving from the server... should be a Message object with
-          // encrypted content... what's this data.type though..
-          const decryptedContent = await decryptMessage(data.content);
-          const decryptedMessage: Message = {
-            ...data,
-            content: decryptedContent
-          }
-          onMessage(decryptedMessage);
-        } catch (err) {
-          console.error('Failed to decrypt message:', err);
-        }
+        onMessage(data, decryptMessage);
       }
     };
     newSocket.onclose = event => {
@@ -92,7 +81,7 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
       console.error('WebSocket readyState', newSocket.readyState);
       newSocket.close();
     }
-  }, [token, onMessage, sendMessage, shouldConnect]);
+  }, [token, sendMessage, shouldConnect]);
 
   useEffect(() => {
     if (retryCount > 0) {
@@ -104,6 +93,7 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
 
   useEffect(() => {
     if (shouldConnect && token) {
+      console.log('in useEffect calling connectWebSocket..');
       connectWebSocket();
     }
 
@@ -115,7 +105,7 @@ export function useWebSocket(shouldConnect: boolean, token: string | null, onMes
         clearTimeout(timeoutIDRef.current);
       }
     };
-  }, [shouldConnect, token, connectWebSocket, onMessage]);
+  }, [shouldConnect, token, connectWebSocket]);
 
   return { sendMessage, sendSystemMessage };
 }

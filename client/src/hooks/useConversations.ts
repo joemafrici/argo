@@ -36,13 +36,13 @@ const useConversations = (username: string, isLoggedIn: boolean) => {
       }
     });
   }, []);
-  const handleNewMessage = useCallback((newMessage: Message) => {
+  const handleNewMessage = (message: Message) => {
     setConversations(prevConversations => {
-      const conversationIndex = prevConversations.findIndex(conv => conv.ID === newMessage.ConvID);
+      const conversationIndex = prevConversations.findIndex(conv => conv.ID === message.ConvID);
       if (conversationIndex >= 0) {
         const updatedConversation = {
           ...prevConversations[conversationIndex],
-          Messages: [...prevConversations[conversationIndex].Messages, newMessage],
+          Messages: [...prevConversations[conversationIndex].Messages, message],
         };
         const updatedConversations = [
           ...prevConversations.slice(0, conversationIndex),
@@ -52,14 +52,14 @@ const useConversations = (username: string, isLoggedIn: boolean) => {
         return updatedConversations;
       } else {
         const newConversation: Conversation = {
-          ID: newMessage.ConvID,
-          Participants: [newMessage.From, username!],
-          Messages: [newMessage],
+          ID: message.ConvID,
+          Participants: [message.From, username!],
+          Messages: [message],
         };
         return [...prevConversations, newConversation];
       }
     });
-  }, [username]);
+  }
 
   const generatePreviews = useCallback((conversations: Conversation[]): ConversationPreview[] => {
     const previews = conversations.map((conversation: Conversation) => {
