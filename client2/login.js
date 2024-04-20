@@ -1,9 +1,10 @@
+import * as encrypt from './encrypt.js';
 // Login form submission
-document.getElementById('loginForm').addEventListener('submit', function(e) {
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
-  // TODO: Send login request to the server
+
   console.log('Login:', username, password);
   fetch('http://localhost:3001/api/login', {
     method: 'POST',
@@ -28,16 +29,27 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
 });
 
 // Register form submission
-document.getElementById('registerForm').addEventListener('submit', function(e) {
+document.getElementById('registerForm').addEventListener('submit', async function(e) {
   e.preventDefault();
   const username = document.getElementById('newUsername').value;
   const password = document.getElementById('newPassword').value;
-  fetch('http://localhost:3001/api/register', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    //body: JSON.stringify({ username, password, publicKey, encryptedPrivateKey }),
-    body: JSON.stringify({ username, password }),
-    });
+  try {
+    const keyPair = await encrypt.generateKeyPair(); 
+    if (keyPair) {
+      const encryptedPrivateKey = await encrypt.encryptPrivateKey(keyPair.privateKey, password);
+      const publicKeyArrayBuffer = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
+      const publicKey = encrypt.arrayBufferToBase64(publicKeyArrayBuffer);
+      fetch('http://localhost:3001/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password, publicKey, encryptedPrivateKey: encryptedPrivateKey }),
+        });
+    } else {
+      throw new Error('keyPair not valid');
+    }
+  } catch (error) {
+    console.error('Failed to generate public/private key pair:', error);
+  }
 });
