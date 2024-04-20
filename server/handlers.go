@@ -312,36 +312,30 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid user context", http.StatusInternalServerError)
 		return
 	}
+
 	var requestData struct {
-		Participants []string `json:"participants"`
+		Partner string `json:"partner"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-	var participant string
-	if requestData.Participants[0] == usr {
-		participant = requestData.Participants[1]
-	} else {
-		participant = requestData.Participants[0]
-	}
-	participants := []string{usr, participant}
+
 	c := dbclient.Database("argodb").Collection("users")
-	for _, participant := range participants {
-		f := bson.D{{Key: "username", Value: participant}}
-		var result bson.M
-		err := c.FindOne(context.TODO(), f).Decode(&result)
-		if err != nil {
-			if err == mongo.ErrNoDocuments {
-				http.Error(w, "User does not exist: " + participant, http.StatusNotFound)
-				return
-			} else {
-				http.Error(w, "Failed to search for user: " + participant, http.StatusInternalServerError)
-				return
-			}
+	f := bson.D{{Key: "username", Value: requestData.Partner}}
+	var result bson.M
+	err := c.FindOne(context.TODO(), f).Decode(&result)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			http.Error(w, "User does not exist: " + requestData.Partner, http.StatusNotFound)
+			return
+		} else {
+			http.Error(w, "Failed to search for user: " + requestData.Partner, http.StatusInternalServerError)
+			return
 		}
 	}
 
+	participants := []string{usr, requestData.Partner}
 	newConversation := Conversation{
 		ID:       uuid.NewString(),
 		Participants:  participants,
@@ -349,7 +343,7 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	coll := dbclient.Database("argodb").Collection("conversations")
-	_, err := coll.InsertOne(context.TODO(), newConversation)
+	_, err = coll.InsertOne(context.TODO(), newConversation)
 	if err != nil {
 		http.Error(w, "Failed to create conversation", http.StatusInternalServerError)
 	}

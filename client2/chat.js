@@ -45,6 +45,29 @@ function setupEventListeners() {
     }
   });
 }
+function createNewConversation(partner) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    console.error('No token found');
+  }
+  fetch(`http://localhost:3001/api/create-conversation`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ partner: partner}),
+  })
+    .then(response => response.json())
+    .then(data => {
+      if (!conversations) {
+        conversations = [];
+      }
+      conversations.push(data);
+      renderConversationList();
+    })
+    .catch();
+}
 function sendMessage(message) {
   wsStatus();
   const currentConversation = conversations.find(
@@ -77,7 +100,6 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initializeChat() {
-
   const token = localStorage.getItem('token');
   socket = new WebSocket('ws://localhost:3001/ws');
   socket.onopen = () => {
@@ -102,8 +124,6 @@ function initializeChat() {
         }
       } else if (data.type && data.type === 'conversationUpdate') {
         // this was for delete I think
-        console.log('received conversation update');
-        console.log(data.conversation);
         onConversationUpdate(data.conversation);
       } else {
         handleIncomingMessage(data);
@@ -164,7 +184,6 @@ function addMessageToList(message) {
   wsStatus();
 }
 function deleteMessage(messageID) {
-  console.log(`deleting message ${messageID}`);
   wsStatus();
   const token = localStorage.getItem('token');
   if (!token) {
@@ -208,16 +227,11 @@ const fetchConversations = async () => {
     conversations = (await response.json());
     conversationList.innerHTML = '';
     // populate list
+    console.log(conversations);
     conversations.forEach(conversation => {
       const listItem = document.createElement('li');
-      var from = conversation.Messages[0].From;
-      var to = conversation.Messages[0].To;
-      var username = localStorage.getItem('username');
-      if (from === username) {
-        listItem.textContent = to;
-      } else if (to === username) {
-        listItem.textContent = from;
-      }
+      const otherParticipant = conversation.Participants.find(p => p !== username);
+      listItem.textContent = otherParticipant;
 
       listItem.addEventListener('click', () => {
         currentConversationId = conversation.ID;
@@ -238,6 +252,9 @@ function updateMessageList(conversation) {
   messageList.innerHTML = '';
   if (conversation) {
     // Populate the message list with the messages of the current conversation
+    if (!conversation.Messages) {
+      conversation.Messages = [];
+    }
     conversation.Messages.forEach(message => {
       addMessageToList(message);
     });
@@ -246,7 +263,7 @@ function updateMessageList(conversation) {
 }
 function onConversationUpdate(updatedConversation) {
   wsStatus();
-  const conversationIndex = conversations.findIndex(
+  const conversationIndex = conversations.findIndex( 
     conversation => conversation.ID === updatedConversation.ID
   );
   if (conversationIndex !== -1) {
@@ -266,4 +283,18 @@ function updateActiveConversation(conversation) {
 
   // Clear the message input
   messageInput.value = '';
+}
+function renderConversationList() {
+  conversationList.innerHTML = '';
+  conversations.forEach(conversation => {
+    const listItem = document.createElement('li');
+    const otherParticipant = conversation.Participants.find(p => p !== username);
+    
+    listItem.textContent = otherParticipant;
+    listItem.addEventListener('click', () => {
+      currentConversationId = conversation.ID;
+      updateActiveConversation(conversation);
+    });
+    conversationList.appendChild(listItem);
+  });
 }
