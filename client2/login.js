@@ -32,6 +32,12 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
   e.preventDefault();
   const username = document.getElementById('newUsername').value;
   const password = document.getElementById('newPassword').value;
-  // TODO: Send registration request to the server
-  console.log('Register:', username, password);
+  fetch('http://localhost:3001/api/register', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    //body: JSON.stringify({ username, password, publicKey, encryptedPrivateKey }),
+    body: JSON.stringify({ username, password }),
+    });
 });

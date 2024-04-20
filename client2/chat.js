@@ -1,9 +1,17 @@
 const conversationList = document.getElementById('conversationList');
 const messageList = document.getElementById('messageList');
 const username = localStorage.getItem('username');
+
+const messageInput = document.getElementById('messageInput');
+const sendButton = document.getElementById('sendButton');
+
+const newConversationInput = document.getElementById('newConversationInput');
+const newConversationButton = document.getElementById('newConversationButton');
+
 let socket;
 let conversations = [];
 let currentConversationId = null;
+
 function wsStatus() {
   if (socket.readyState !== WebSocket.OPEN) {
     console.error('socket is not ready');
@@ -27,6 +35,13 @@ function setupEventListeners() {
         sendMessage(message);
         messageInput.value = '';
       }
+    }
+  });
+  newConversationButton.addEventListener('click', function() {
+    const participant = newConversationInput.value.trim();
+    if (participant !== '') {
+      createNewConversation(participant);
+      newConversationInput.value = '';
     }
   });
 }
@@ -241,4 +256,14 @@ function onConversationUpdate(updatedConversation) {
     }
   }
   wsStatus();
+}
+function updateActiveConversation(conversation) {
+  // Clear the existing message list
+  messageList.innerHTML = '';
+
+  // Update the message list with the messages of the selected conversation
+  updateMessageList(conversation.Messages);
+
+  // Clear the message input
+  messageInput.value = '';
 }
