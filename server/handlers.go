@@ -55,6 +55,7 @@ func HandleSendSalt(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
 // ***********************************************
 func HandleSendKeys(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleSendKeys")
@@ -66,7 +67,7 @@ func HandleSendKeys(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var keysRequest struct {
-		PublicKey string `json:"publicKey"`
+		PublicKey           string `json:"publicKey"`
 		EncryptedPrivateKey string `json:"encryptedPrivateKey"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&keysRequest); err != nil {
@@ -84,7 +85,7 @@ func HandleSendKeys(w http.ResponseWriter, r *http.Request) {
 	f := bson.M{"username": username}
 	u := bson.M{
 		"$set": bson.M{
-			"publicKey": keysRequest.PublicKey,
+			"publicKey":           keysRequest.PublicKey,
 			"encryptedPrivateKey": keysRequest.EncryptedPrivateKey,
 		},
 	}
@@ -97,6 +98,7 @@ func HandleSendKeys(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
 // ***********************************************
 func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleDeleteMessage")
@@ -108,15 +110,19 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var deleteRequest struct {
-		ConversationID string `json:"conversationID"`
+		ConversationID string `json:"currentConversationID"`
 		MessageID      string `json:"messageID"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&deleteRequest); err != nil {
 		log.Println("Bad request")
 		http.Error(w, err.Error(), http.StatusBadRequest)
-		return // fairly certain I should be returning here
+		return
 	}
+	log.Println("delete request conv id")
+	log.Println(deleteRequest.ConversationID)
+	log.Println("delete request message id")
+	log.Println(deleteRequest.MessageID)
 
 	c := dbclient.Database(dbname).Collection("conversations")
 	f := bson.M{
@@ -138,6 +144,8 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var updatedConversation Conversation
+	log.Println("conversation id: ", deleteRequest.ConversationID)
+	log.Println("message id: ", deleteRequest.MessageID)
 	err = c.FindOne(context.TODO(), bson.M{"id": deleteRequest.ConversationID}).Decode(&updatedConversation)
 	if err != nil {
 		log.Println("Error fetching updated conversation:", err)
@@ -146,7 +154,7 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := DeleteMessageResponse{
-		Type: "conversationUpdate",
+		Type:         "conversationUpdate",
 		Conversation: updatedConversation,
 	}
 	responseJSON, err := json.Marshal(response)
@@ -155,24 +163,28 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	clientsMu.RLock()
-	for _, user := range updatedConversation.Participants {
-		ws, ok := clients[user]
+	// TODO: need to determine if I need to echo the updated conversation
+	// back to the user that requested the delete
+
+	for _, participant := range updatedConversation.Participants {
+		ws, ok := clients[participant]
 		if !ok {
-			log.Println("No WebSocket connection found for user:", user, err)
+			log.Println("No websocket connection found for user:", participant, err)
 			continue
 		}
 
 		if err := ws.WriteMessage(websocket.TextMessage, responseJSON); err != nil {
-			log.Println("Error sending message over WebSocket to user:", user, err)
-			continue
+			log.Println("Error sending message over WebSocket to user:", participant, err)
 		}
 	}
-	clientsMu.RUnlock()
 
+	clientsMu.RUnlock()
+	log.Println("sending updated conversation after delete")
+	log.Println(updatedConversation)
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedConversation)
-	log.Println("Response sent")
+	log.Println("HandleDeleteMessage: updated conversation sent")
 }
 
 // ***********************************************
@@ -180,9 +192,9 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleRegister")
 
 	var newUser struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-		PublicKey string `json:"publicKey"`
+		Username            string `json:"username"`
+		Password            string `json:"password"`
+		PublicKey           string `json:"publicKey"`
 		EncryptedPrivateKey string `json:"encryptedPrivateKey"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&newUser); err != nil {
@@ -207,9 +219,9 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	userToInsert := User{
-		Username: newUser.Username,
-		Password: string(hashedPassword),
-		PublicKey: newUser.PublicKey,
+		Username:            newUser.Username,
+		Password:            string(hashedPassword),
+		PublicKey:           newUser.PublicKey,
 		EncryptedPrivateKey: newUser.EncryptedPrivateKey,
 	}
 
@@ -221,6 +233,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 }
+
 // ***********************************************
 func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleLogin")
@@ -251,17 +264,18 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 
 	response := LoginResponse{
 		Token: tokenString,
-		Keys: struct{
-			Public string `json:"public"` 
+		Keys: struct {
+			Public           string `json:"public"`
 			EncryptedPrivate string `json:"encryptedPrivate"`
 		}{
-			Public: storedUser.PublicKey,
+			Public:           storedUser.PublicKey,
 			EncryptedPrivate: storedUser.EncryptedPrivateKey,
 		},
 	}
 
 	json.NewEncoder(w).Encode(response)
 }
+
 // ***********************************************
 // This function is not needed right now.
 // Could be needed in the future if I want a user to be able to log out
@@ -293,7 +307,7 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	initiator, ok := r.Context().Value("username").(string)
+	usr, ok := r.Context().Value("username").(string)
 	if !ok {
 		http.Error(w, "Invalid user context", http.StatusInternalServerError)
 		return
@@ -305,13 +319,33 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+	var participant string
+	if requestData.Participants[0] == usr {
+		participant = requestData.Participants[1]
+	} else {
+		participant = requestData.Participants[0]
+	}
+	participants := []string{usr, participant}
+	c := dbclient.Database("argodb").Collection("users")
+	for _, participant := range participants {
+		f := bson.D{{Key: "username", Value: participant}}
+		var result bson.M
+		err := c.FindOne(context.TODO(), f).Decode(&result)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				http.Error(w, "User does not exist: " + participant, http.StatusNotFound)
+				return
+			} else {
+				http.Error(w, "Failed to search for user: " + participant, http.StatusInternalServerError)
+				return
+			}
+		}
+	}
 
-	participants := append(requestData.Participants, initiator)
-	participants = utils.RemoveDuplicates(participants)
 	newConversation := Conversation{
-		ID:           uuid.NewString(),
-		Participants: participants,
-		Messages:     []Message{},
+		ID:       uuid.NewString(),
+		Participants:  participants,
+		Messages: []Message{},
 	}
 
 	coll := dbclient.Database("argodb").Collection("conversations")
@@ -386,6 +420,7 @@ func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(conversations)
+	log.Println(conversations)
 }
 
 // ***********************************************
@@ -437,6 +472,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	log.Println(username, "authenticated")
 	go HandleConnection(username, conn)
 }
+
 // ***********************************************
 func HandleConnection(username string, conn *websocket.Conn) {
 	log.Println("in HandleConnection")
@@ -484,7 +520,7 @@ func HandleConnection(username string, conn *websocket.Conn) {
 		if err := json.Unmarshal(p, &echo); err != nil {
 			log.Println("Unmarshal", err)
 		}
-		
+
 		log.Println("Received message", echo.Content, "from", echo.From)
 
 		if echo.Timestamp == nil {
@@ -494,9 +530,10 @@ func HandleConnection(username string, conn *websocket.Conn) {
 		if echo.ID == "" {
 			echo.ID = uuid.NewString()
 		}
+		log.Println("message id is", echo.ID)
 
 		forward := Message{
-			ID:        uuid.NewString(),
+			ID:        echo.ID,
 			ConvID:    echo.ConvID,
 			To:        echo.To,
 			From:      echo.From,
