@@ -199,6 +199,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&newUser); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
+		log.Println(err.Error())
 		return
 	}
 	var existingUser User
@@ -221,8 +222,8 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 	userToInsert := User{
 		Username:            newUser.Username,
 		Password:            string(hashedPassword),
-	//	PublicKey:           newUser.PublicKey,
-	//	EncryptedPrivateKey: newUser.EncryptedPrivateKey,
+		PublicKey:           newUser.PublicKey,
+		EncryptedPrivateKey: newUser.EncryptedPrivateKey,
 	}
 
 	_, err = dbclient.Database(dbname).Collection("users").InsertOne(context.TODO(), userToInsert)
