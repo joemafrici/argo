@@ -9,6 +9,7 @@ type User struct {
 	Password            string `bson:"password"`
 	PublicKey           string `bson:"publicKey"`
 	EncryptedPrivateKey string `bson:"encryptedPrivateKey"`
+	SaltBase64 string `bson:"saltBase64"`
 }
 type Message struct {
 	ID        string     `bson:"id"`
@@ -40,6 +41,7 @@ type LoginResponse struct {
 	Keys struct {
 		Public string `json:"public"`
 		EncryptedPrivate string `json:"encryptedPrivate"`
+		SaltBase64 string `json:"saltBase64"`
 	} `json:"keys"`
 }
 // type Keys struct {

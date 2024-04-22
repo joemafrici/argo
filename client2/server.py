@@ -8,7 +8,7 @@ class Handler(FileSystemEventHandler):
         print(f"File modified: {event.src_path}")
 
 def serve_files():
-    PORT = 8001
+    PORT = 8002
     handler = http.server.SimpleHTTPRequestHandler
     with socketserver.TCPServer(("", PORT), handler) as httpd:
         print(f"Serving at port {PORT}")

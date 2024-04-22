@@ -16,7 +16,7 @@ export async function generateDerivedKey(password, salt) {
   );
   return derivedKey;
 }
-export async function encryptPrivateKey(privKey) {
+export async function encryptPrivateKey(privKey, derivedKey) {
   try {
     if (!derivedKey) {
       throw new Error('Derived key is not set');
@@ -72,11 +72,6 @@ export async function decryptPrivateKey(encryptedData) {
 }
 
 export async function encryptMessage(message, key) {
-  console.log('in encryptMessage.. derived key:', derivedKey);
-  if (!derivedKey) {
-    throw new Error('Derived key is not set');
-  }
-
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const encryptedMessage = await window.crypto.subtle.encrypt(
     { name: 'AES-GCM', iv: iv },
@@ -181,6 +176,27 @@ export function arrayBufferToBase64(buffer) {
     throw new Error('Failed to convert ArrayBuffer to base64: ' + err);
   }
 }
+export function saltArrayBufferToBase64(buffer) {
+  try {
+    const bytes = new Uint8Array(buffer);
+    const binary = String.fromCharCode.apply(null, bytes);
+    return window.btoa(binary);
+  } catch (err) {
+    throw new Error('Failed to convert ArrayBuffer to base64: ' + err);
+  }
+}
+export function saltBase64ToArrayBuffer(base64) {
+  try {
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let ii = 0; ii < binary.length; ++ii) {
+      bytes[ii] = binary.charCodeAt(ii);
+    }
+    return bytes.buffer;
+  } catch (err) {
+    throw new Error('Failed to convert base64 to ArrayBuffer: ' + err);
+  }
+}
 //************************************************
 // Transforms keyData into CryptoKey object for use in Web Cryptogrophy API
 export async function createPublicCryptoKey(keyData) {
@@ -207,6 +223,7 @@ export async function createPublicCryptoKey(keyData) {
 }
 //************************************************
 // Uses password to encrypt private key privKey
+/*
 export async function encryptPrivateKey(privKey, password) {
   try {
     const privKeyBuffer = await window.crypto.subtle.exportKey('pkcs8', privKey);
@@ -245,9 +262,11 @@ export async function encryptPrivateKey(privKey, password) {
     return null;
   }
 }
+*/
 //************************************************
 // Decrypts a private key, encryptedData, that was encrypted using 
 // encryptPrivateKey and password
+/*
 export async function decryptPrivateKey(encryptedData, password) {
   try {
     const dataBuffer = base64ToArrayBuffer(encryptedData);
@@ -294,6 +313,7 @@ export async function decryptPrivateKey(encryptedData, password) {
     return null;
   }
 }
+*/
 //************************************************
 export function generateSalt() {
   return window.crypto.getRandomValues(new Uint8Array(16));

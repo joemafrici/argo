@@ -32,13 +32,14 @@ func HandleSendSalt(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
+	log.Println("got salt")
+	log.Println(saltRequest.Salt)
 	username, ok := r.Context().Value("username").(string)
 	if !ok {
 		http.Error(w, "Invalid user context", http.StatusInternalServerError)
 		return
 	}
-
+	log.Println("saving to", username)
 	c := dbclient.Database(dbname).Collection("users")
 	f := bson.M{"username": username}
 	u := bson.M{
@@ -198,6 +199,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		Username            string `json:"username"`
 		Password            string `json:"password"`
 		PublicKey           string `json:"publicKey"`
+		SaltBase64			string	`json:"saltBase64"`
 		EncryptedPrivateKey string `json:"encryptedPrivateKey"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&newUser); err != nil {
@@ -227,7 +229,9 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		Password:            string(hashedPassword),
 		PublicKey:           newUser.PublicKey,
 		EncryptedPrivateKey: newUser.EncryptedPrivateKey,
+		SaltBase64: newUser.SaltBase64,
 	}
+	log.Println("new user salt is: ", userToInsert.SaltBase64)
 
 	_, err = dbclient.Database(dbname).Collection("users").InsertOne(context.TODO(), userToInsert)
 	if err != nil {
@@ -271,9 +275,11 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 		Keys: struct {
 			Public           string `json:"public"`
 			EncryptedPrivate string `json:"encryptedPrivate"`
+			SaltBase64 string `json:"saltBase64"`
 		}{
 			Public:           storedUser.PublicKey,
 			EncryptedPrivate: storedUser.EncryptedPrivateKey,
+			SaltBase64: storedUser.SaltBase64,
 		},
 	}
 

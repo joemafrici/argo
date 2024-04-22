@@ -1,9 +1,10 @@
+import * as encrypt from './encrypt.js';
 const conversationList = document.getElementById('conversationList');
 const messageList = document.getElementById('messageList');
 const username = localStorage.getItem('username');
 
 const messageInput = document.getElementById('messageInput');
-const sendButton = document.getElementById('sendButton');
+//const sendButton = document.getElementById('sendButton');
 
 const newConversationInput = document.getElementById('newConversationInput');
 const newConversationButton = document.getElementById('newConversationButton');
@@ -82,12 +83,17 @@ function sendMessage(message) {
   }
   // TODO: encrypt message with partner's public key.. store in content
   // TODO: encrypt message with own public key.. store in content2 
+  console.log(currentConversation);
+  const partnerPublicKey = currentConversation.Participants.user1.PublicKey;
+  console.log('encrypting message for partner with: ', partnerPublicKey);
+  const encryptedForPartner = encrypt.encryptMessage(message, partnerPublicKey);
+
   var content2msg = message + " encrypted";
   const chatMessage = {
     To: currentConversation.Participants.user1.Partner,
     ConvID: currentConversationId,
     From: username,
-    content: message,
+    content: encryptedForPartner,
     content2: content2msg 
   };
   if (socket.readyState === WebSocket.OPEN) {
@@ -150,8 +156,6 @@ function initializeChat() {
 }
 function handleIncomingMessage(message) {
   console.log('in handleIncomingMessage');
-  console.log('message is ');
-  console.log(message);
   // TODO: retrieve derivedKey from localstorage
   // TODO: retrieve encryptedPrivateKey from localstorage
   // TODO: decrypt encryptedPrivateKey with derivedKey
@@ -166,8 +170,6 @@ function handleIncomingMessage(message) {
   );
   // test
   if (currentConversation) {
-    console.log('current conversation is');
-    console.log(currentConversation);
     currentConversation.Participants.user1.Messages.push(message);
     updateMessageList(currentConversation);
   }

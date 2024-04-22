@@ -18,13 +18,11 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
     if (data.token) {
       localStorage.setItem('token', data.token);
       localStorage.setItem('username', username);
+      localStorage.setItem('saltBase64', data.keys.saltBase64);
+      const salt = encrypt.base64ToArrayBuffer(data.keys.saltBase64);
       // TODO: use this line after retrieving key from localstorage
       //const publicKey = await encrypt.createPublicCryptoKey(data.keys.public);
-      // TODO: get the salt from the response
-      // TODO: generate and send salt upon register
-      // TODO: get server to accept salt and store in register handler
-      // TODO: get server to send salt on login handler
-      const derivedKey = encrypt.generateDerivedKey(password, salt);
+      const derivedKey = await encrypt.generateDerivedKey(password, salt);
       // TODO: derived key may need to be in some storable form
       localStorage.setItem('derivedKey', derivedKey);
       localStorage.setItem('publicKey', data.keys.public);
@@ -47,7 +45,11 @@ document.getElementById('registerForm').addEventListener('submit', async functio
   try {
     const keyPair = await encrypt.generateKeyPair(); 
     if (keyPair) {
-      const encryptedPrivateKey = await encrypt.encryptPrivateKey(keyPair.privateKey, password);
+      const salt = window.crypto.getRandomValues(new Uint8Array(16));
+      const saltBase64 = encrypt.arrayBufferToBase64(salt);
+      const derivedKey = await encrypt.generateDerivedKey(password, salt);
+      const encryptedPrivateKey = await encrypt.encryptPrivateKey(keyPair.privateKey, derivedKey);
+      
       const publicKeyArrayBuffer = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
       const publicKey = encrypt.arrayBufferToBase64(publicKeyArrayBuffer);
       fetch('http://localhost:3001/api/register', {
@@ -55,7 +57,15 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ username, password, publicKey, encryptedPrivateKey: encryptedPrivateKey }),
+        body: JSON.stringify({ username, password, publicKey, encryptedPrivateKey: encryptedPrivateKey, saltBase64 }),
+        })
+        .then(response => {
+          if (!response.ok) {
+            console.error('Failed to register: ', rsponse.status);
+          }
+        })
+        .catch(error => {
+            console.error('Error registering: ', error);
         });
     } else {
       throw new Error('keyPair not valid');
