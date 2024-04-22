@@ -554,13 +554,10 @@ func HandleConnection(username string, conn *websocket.Conn) {
 			closeConnection(conn)
 			return
 		}
-
 		var message Message
 		if err := json.Unmarshal(p, &message); err != nil {
 			log.Println("Unmarshal", err)
 		}
-
-		log.Println("Received message", message.Content, "from", message.From)
 
 		if message.Timestamp == nil {
 			now := time.Now()
@@ -586,6 +583,10 @@ func HandleConnection(username string, conn *websocket.Conn) {
 			Content:   message.Content2,
 			Timestamp: message.Timestamp,
 		}
+		log.Println("recipient message")
+		log.Println(recipientMessage.Content)
+		log.Println("sender message")
+		log.Println(senderMessage.Content)
 
 		recipientBytes, err := json.Marshal(recipientMessage)
 		if err != nil {

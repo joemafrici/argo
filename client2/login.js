@@ -1,6 +1,7 @@
 import * as encrypt from './encrypt.js';
 // Login form submission
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
+  console.log(localStorage.getItem('publicKey'));
   e.preventDefault();
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
@@ -23,8 +24,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       // TODO: use this line after retrieving key from localstorage
       //const publicKey = await encrypt.createPublicCryptoKey(data.keys.public);
       const derivedKey = await encrypt.generateDerivedKey(password, salt);
-      // TODO: derived key may need to be in some storable form
-      localStorage.setItem('derivedKey', derivedKey);
+      await encrypt.storeDerivedKey(derivedKey);
       localStorage.setItem('publicKey', data.keys.public);
       localStorage.setItem('privateKey', data.keys.encryptedPrivate);
       
@@ -61,7 +61,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
         })
         .then(response => {
           if (!response.ok) {
-            console.error('Failed to register: ', rsponse.status);
+            console.error('Failed to register: ', response.status);
           }
         })
         .catch(error => {

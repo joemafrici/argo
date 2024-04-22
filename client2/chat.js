@@ -69,8 +69,7 @@ function createNewConversation(partner) {
     })
     .catch();
 }
-function sendMessage(message) {
-  console.log('in sendMessage');
+async function sendMessage(message) {
   wsStatus();
   const currentConversation = conversations.find(
     conversation => conversation.ID === currentConversationId
@@ -83,18 +82,22 @@ function sendMessage(message) {
   }
   // TODO: encrypt message with partner's public key.. store in content
   // TODO: encrypt message with own public key.. store in content2 
-  console.log(currentConversation);
-  const partnerPublicKey = currentConversation.Participants.user1.PublicKey;
-  console.log('encrypting message for partner with: ', partnerPublicKey);
-  const encryptedForPartner = encrypt.encryptMessage(message, partnerPublicKey);
+  const partnerPublicKeyBase64 = currentConversation.Participants.user1.PublicKey;
+  const partnerPublicKey = await encrypt.createPublicCryptoKey(partnerPublicKeyBase64);
+  // convert public key
+  const encryptedForPartner = await encrypt.encryptMessage(message, partnerPublicKey);
 
-  var content2msg = message + " encrypted";
+  const selfPublicKeyBase64 = localStorage.getItem('publicKey');
+  const selfPublicKey = await encrypt.createPublicCryptoKey(selfPublicKeyBase64);
+  const encryptedForSelf = await encrypt.encryptMessage(message, selfPublicKey);
+
+  //var content2msg = message + " encrypted";
   const chatMessage = {
     To: currentConversation.Participants.user1.Partner,
     ConvID: currentConversationId,
     From: username,
-    content: encryptedForPartner,
-    content2: content2msg 
+    Content: encryptedForPartner,
+    Content2: encryptedForSelf 
   };
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(chatMessage));
@@ -139,6 +142,18 @@ function initializeChat() {
         // TODO: maybe should do decryption here
         onConversationUpdate(data.conversation);
       } else {
+        // TODO: DECRYPT HERE
+        //console.log('what does this look like');
+        //console.log(data);
+        const derivedKey = await encrypt.retrieveDerivedKey();
+        // Retrieve encryptedPrivateKey from localstorage
+        const encryptedPrivateKey = localStorage.getItem('privateKey');
+        // Decrypt encryptedPrivateKey with derivedKey
+        const privateKey = await encrypt.decryptPrivateKey(encryptedPrivateKey, derivedKey);
+        const decryptedMessage = await encrypt.decryptMessage(data.Content, privateKey);
+        data.Content = decryptedMessage;
+        //console.log('data with decrypted content');
+        //console.log(data.Content);
         handleIncomingMessage(data);
       }
     };
@@ -155,11 +170,6 @@ function initializeChat() {
   setupEventListeners();
 }
 function handleIncomingMessage(message) {
-  console.log('in handleIncomingMessage');
-  // TODO: retrieve derivedKey from localstorage
-  // TODO: retrieve encryptedPrivateKey from localstorage
-  // TODO: decrypt encryptedPrivateKey with derivedKey
-  // TODO: decrypt message contentn with privateKey
   // TODO: message currently doesn't have a type field I think
   // TODO: ACTUALLY i THINK MAYBE DO IT IN UPDATEMESSAGELIST
   // TODO: BECAUSE FETCH CONVERSATIONS CALLS UPDATEMESSAGELIST
@@ -254,8 +264,11 @@ const fetchConversations = async () => {
       
       const partner = conversations[cidx].Participants.user1.Partner
       listItem.textContent = partner;
-      listItem.addEventListener('click', () => {
+      listItem.addEventListener('click', async () => {
         currentConversationId = conversations[cidx].ID;
+        // TODO: DECRYPT HERE
+        const decryptedConvo = await encrypt.decryptConversation(conversations[cidx]);
+        conversations[cidx] = decryptedConvo;
         updateMessageList(conversations[cidx]);
       });
       conversationList.appendChild(listItem);
@@ -266,7 +279,7 @@ const fetchConversations = async () => {
   }
   wsStatus();
 }
-function updateMessageList(conversation) {
+async function updateMessageList(conversation) {
   wsStatus();
   // Clear the existing message list
   messageList.innerHTML = '';
@@ -276,9 +289,8 @@ function updateMessageList(conversation) {
       conversation.Participants.username.Messages = [];
     }
     conversation.Participants.user1.Messages.forEach(message => {
-      //TODO: DECRYPT HERE PROB
       addMessageToList(message);
-    });
+    })
   }
   wsStatus();
 }
