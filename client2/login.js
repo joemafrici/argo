@@ -5,27 +5,31 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
 
-  console.log('Login:', username, password);
-  fetch('http://localhost:3001/api/login', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ username, password }),
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (data.token) {
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('username', username);
-        window.location.href = 'chat.html';
-      } else {
-        console.error('Login failed');
-      }
-    })
-    .catch(error => {
-      console.error('Error during login:', error);
+  try {
+    const response = await fetch('http://localhost:3001/api/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username, password }),
     });
+    
+    const data = await response.json();
+
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('username', username);
+      // TODO: use this line after retrieving key from localstorage
+      //const publicKey = await encrypt.createPublicCryptoKey(data.keys.public);
+      localStorage.setItem('publicKey', data.keys.public);
+      localStorage.setItem('privateKey', data.keys.encryptedPrivate);
+      window.location.href = 'chat.html';
+    } else {
+      console.error('Login failed');
+    }
+  } catch (error) {
+    console.error('error handling login', error);
+  }
 });
 
 // Register form submission

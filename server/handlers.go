@@ -102,6 +102,8 @@ func HandleSendKeys(w http.ResponseWriter, r *http.Request) {
 // ***********************************************
 func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	log.Println("in HandleDeleteMessage")
+	log.Println("message delete not available")
+	/*
 
 	if r.Method != "DELETE" {
 		log.Println("Method not allowed")
@@ -185,6 +187,7 @@ func HandleDeleteMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(updatedConversation)
 	log.Println("HandleDeleteMessage: updated conversation sent")
+	*/
 }
 
 // ***********************************************
@@ -324,8 +327,8 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 
 	c := dbclient.Database("argodb").Collection("users")
 	f := bson.D{{Key: "username", Value: requestData.Partner}}
-	var result bson.M
-	err := c.FindOne(context.TODO(), f).Decode(&result)
+	var partnerUser bson.M
+	err := c.FindOne(context.TODO(), f).Decode(&partnerUser)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
 			http.Error(w, "User does not exist: " + requestData.Partner, http.StatusNotFound)
@@ -335,12 +338,48 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	f = bson.D{{Key: "username", Value: usr}}
+	var user bson.M
+	err = c.FindOne(context.TODO(), f).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			http.Error(w, "User does not exist: " + usr, http.StatusNotFound)
+			return
+		} else {
+			http.Error(w, "Failed to search for user: " + usr, http.StatusInternalServerError)
+			return
+		}
+	}
 
+	// TODO: get from database
+	usrPublicKey := user["publicKey"].(string)
+	partnerPublicKey := partnerUser["publicKey"].(string)
+	participants := map[string]Participant{
+		"user1": {
+			Username: usr,
+			Partner: requestData.Partner,
+			PublicKey: partnerPublicKey,
+			Messages: []Message{},
+		},
+		"user2": {
+			Username: requestData.Partner,
+			Partner: usr,
+			PublicKey: usrPublicKey,
+			Messages: []Message{},
+		},
+	}
+	/*
 	participants := []string{usr, requestData.Partner}
 	newConversation := Conversation{
 		ID:       uuid.NewString(),
 		Participants:  participants,
 		Messages: []Message{},
+	}
+	*/
+
+	newConversation := Conversation{
+		ID: uuid.NewString(),
+		Participants: participants,
 	}
 
 	coll := dbclient.Database("argodb").Collection("conversations")
@@ -348,7 +387,6 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "Failed to create conversation", http.StatusInternalServerError)
 	}
-	log.Println(newConversation)
 	json.NewEncoder(w).Encode(newConversation)
 }
 
@@ -407,6 +445,7 @@ func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "username is required", http.StatusBadRequest)
 		return
 	}
+
 	conversations, err := getUserConversations(username)
 	if err != nil {
 		log.Println("conversations err", err)
@@ -415,7 +454,6 @@ func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(conversations)
-	log.Println(conversations)
 }
 
 // ***********************************************
@@ -511,70 +549,78 @@ func HandleConnection(username string, conn *websocket.Conn) {
 			return
 		}
 
-		var echo Message
-		if err := json.Unmarshal(p, &echo); err != nil {
+		var message Message
+		if err := json.Unmarshal(p, &message); err != nil {
 			log.Println("Unmarshal", err)
 		}
 
-		log.Println("Received message", echo.Content, "from", echo.From)
+		log.Println("Received message", message.Content, "from", message.From)
 
-		if echo.Timestamp == nil {
+		if message.Timestamp == nil {
 			now := time.Now()
-			echo.Timestamp = &now
+			message.Timestamp = &now
 		}
-		if echo.ID == "" {
-			echo.ID = uuid.NewString()
+		if message.ID == "" {
+			message.ID = uuid.NewString()
 		}
-		log.Println("message id is", echo.ID)
 
-		forward := Message{
-			ID:        echo.ID,
-			ConvID:    echo.ConvID,
-			To:        echo.To,
-			From:      echo.From,
-			Content:   echo.Content,
-			Timestamp: echo.Timestamp,
+		recipientMessage := Message{
+			ID:        message.ID,
+			ConvID:    message.ConvID,
+			To:        message.To,
+			From:      message.From,
+			Content:   message.Content,
+			Timestamp: message.Timestamp,
 		}
-		forwardBytes, err := json.Marshal(forward)
+		senderMessage:= Message{
+			ID:        message.ID,
+			ConvID:    message.ConvID,
+			To:        message.To,
+			From:      message.From,
+			Content:   message.Content2,
+			Timestamp: message.Timestamp,
+		}
+
+		recipientBytes, err := json.Marshal(recipientMessage)
 		if err != nil {
 			log.Println("Marshal", err)
 		}
-		echoBytes, err := json.Marshal(echo)
+		senderBytes, err := json.Marshal(senderMessage)
 		if err != nil {
 			log.Println("Marshal", err)
 		}
 
 		clientsMu.RLock()
-		recipientConn, recipientExists := clients[echo.To]
-		echoConn, echoExists := clients[echo.From]
+		recipientConn, recipientExists := clients[message.To]
+		senderConn, senderExists := clients[message.From]
 		clientsMu.RUnlock()
 
-		if echoExists {
-			echoConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := echoConn.WriteMessage(messageType, echoBytes); err != nil {
+		if senderExists {
+			senderConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			if err := senderConn.WriteMessage(messageType, senderBytes); err != nil {
 				log.Println("Error writing message to echo connection:", err)
-				closeConnection(echoConn)
+				closeConnection(senderConn)
 				clientsMu.Lock()
-				delete(clients, echo.From)
+				delete(clients, message.From)
 				clientsMu.Unlock()
 			}
-			log.Println("echoed: ", echo)
+			log.Println("echoed: ", senderMessage)
 		} else {
-			log.Println(echo.From, "is not logged in")
+			log.Println(message.From, "is not logged in")
 		}
 		if recipientExists {
 			recipientConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := recipientConn.WriteMessage(messageType, forwardBytes); err != nil {
+			if err := recipientConn.WriteMessage(messageType, recipientBytes); err != nil {
 				log.Println("Error writng message to recipient connection:", err)
 				closeConnection(recipientConn)
 				clientsMu.Lock()
-				delete(clients, echo.To)
+				delete(clients, message.To)
 				clientsMu.Unlock()
 			}
 		} else {
-			log.Println(echo.To, "is not logged in")
+			log.Println(message.To, "is not logged in")
 		}
-		if err := addMessageToConversation(forward); err != nil {
+		if err := addMessageToConversation(message); err != nil {
 			utils.HandleDatabaseError(err)
 		}
 	}

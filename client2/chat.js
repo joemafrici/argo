@@ -69,6 +69,7 @@ function createNewConversation(partner) {
     .catch();
 }
 function sendMessage(message) {
+  console.log('in sendMessage');
   wsStatus();
   const currentConversation = conversations.find(
     conversation => conversation.ID === currentConversationId
@@ -79,11 +80,13 @@ function sendMessage(message) {
   } else {
     partner = currentConversation.Participants[0];
   }
+  var content2msg = message + " encrypted";
   const chatMessage = {
-    To: partner,
+    To: currentConversation.Participants.user1.Partner,
     ConvID: currentConversationId,
     From: username,
-    content: message
+    content: message,
+    content2: content2msg 
   };
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(chatMessage));
@@ -124,6 +127,7 @@ function initializeChat() {
         }
       } else if (data.type && data.type === 'conversationUpdate') {
         // this was for delete I think
+        // TODO: need to change this since conversations have changed
         onConversationUpdate(data.conversation);
       } else {
         handleIncomingMessage(data);
@@ -142,13 +146,19 @@ function initializeChat() {
   setupEventListeners();
 }
 function handleIncomingMessage(message) {
+  console.log('in handleIncomingMessage');
+  console.log('message is ');
+  console.log(message);
   // TODO: message currently doesn't have a type field I think
   wsStatus();
   const currentConversation = conversations.find(
     conversation => conversation.ID === currentConversationId
   );
+  // test
   if (currentConversation) {
-    currentConversation.Messages.push(message);
+    console.log('current conversation is');
+    console.log(currentConversation);
+    currentConversation.Participants.user1.Messages.push(message);
     updateMessageList(currentConversation);
   }
   //addMessageToList(message);
@@ -227,19 +237,17 @@ const fetchConversations = async () => {
     conversations = (await response.json());
     conversationList.innerHTML = '';
     // populate list
-    console.log(conversations);
-    conversations.forEach(conversation => {
+    for (const cidx in conversations) {
       const listItem = document.createElement('li');
-      const otherParticipant = conversation.Participants.find(p => p !== username);
-      listItem.textContent = otherParticipant;
-
+      
+      const partner = conversations[cidx].Participants.user1.Partner
+      listItem.textContent = partner;
       listItem.addEventListener('click', () => {
-        currentConversationId = conversation.ID;
-        updateMessageList(conversation);
+        currentConversationId = conversations[cidx].ID;
+        updateMessageList(conversations[cidx]);
       });
       conversationList.appendChild(listItem);
-    });
-
+    }
   } catch (error) {
     console.error('Failed to fetch conversations', error);
     return null;
@@ -252,10 +260,10 @@ function updateMessageList(conversation) {
   messageList.innerHTML = '';
   if (conversation) {
     // Populate the message list with the messages of the current conversation
-    if (!conversation.Messages) {
-      conversation.Messages = [];
+    if (!conversation.Participants.user1.Messages) {
+      conversation.Participants.username.Messages = [];
     }
-    conversation.Messages.forEach(message => {
+    conversation.Participants.user1.Messages.forEach(message => {
       addMessageToList(message);
     });
   }
@@ -286,15 +294,15 @@ function updateActiveConversation(conversation) {
 }
 function renderConversationList() {
   conversationList.innerHTML = '';
-  conversations.forEach(conversation => {
+  for (const cidx in conversations) {
     const listItem = document.createElement('li');
-    const otherParticipant = conversation.Participants.find(p => p !== username);
-    
-    listItem.textContent = otherParticipant;
+    //test    
+    const partner = conversations[cidx].Participants.user1.Partner
+    listItem.textContent = partner;
     listItem.addEventListener('click', () => {
-      currentConversationId = conversation.ID;
-      updateActiveConversation(conversation);
+      currentConversationId = conversations[cidx].ID;
+      updateMessageList(conversations[cidx]);
     });
     conversationList.appendChild(listItem);
-  });
+  }
 }

@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/joemafrici/argo/utils"
@@ -122,11 +121,141 @@ func protectedEndpoint(handler http.HandlerFunc) http.HandlerFunc {
 func addMessageToConversation(message Message) error {
 	log.Println("in addMessageToConversation")
 
+	ctx := context.TODO()
 	coll := dbclient.Database(dbname).Collection("conversations")
+
+	recipientMessage := Message{
+		ID: message.ID,
+		ConvID: message.ConvID,
+		To: message.To,
+		From: message.From,
+		Content: message.Content,
+		Timestamp: message.Timestamp,
+	}
+	senderMessage := Message{
+		ID: message.ID,
+		ConvID: message.ConvID,
+		To: message.To,
+		From: message.From,
+		Content: message.Content2,
+		Timestamp: message.Timestamp,
+	}
+	// Find the conversation document
+    filter := bson.M{"id": message.ConvID}
+
+	// Update the recipient's messages array
+	recipientUpdate := bson.M{
+		"$push": bson.M{
+			"participants.user1.messages": senderMessage,
+			"participants.user2.messages": recipientMessage,
+		},
+	}
+	/*
+	// Update the sender's messages array
+	senderUpdate := bson.M{
+		"$push": bson.M{
+			"participants.user1.messages": senderMessage,
+			"participants.user2.messages": senderMessage,
+		},
+	}
+	*/
+
+    // Perform the update operations
+    _, err := coll.UpdateOne(ctx, filter, recipientUpdate)
+    if err != nil {
+        return fmt.Errorf("error updating recipient's messages: %w", err)
+    }
+	/*
+    _, err = coll.UpdateOne(ctx, filter, senderUpdate)
+    if err != nil {
+        return fmt.Errorf("error updating sender's messages: %w", err)
+    }
+	*/
+	/*
+	// Find the conversation document and update the messages arrays
+    filter := bson.M{"id": message.ConvID}
+    update := bson.M{
+        "$push": bson.M{
+            "participants.user1.messages": bson.M{
+                "$cond": []interface{}{
+                    bson.M{"$eq": []string{"$participants.user1.username", message.To}},
+                    recipientMessage,
+                    senderMessage,
+                },
+            },
+            "participants.user2.messages": bson.M{
+                "$cond": []interface{}{
+                    bson.M{"$eq": []string{"$participants.user2.username", message.To}},
+                    recipientMessage,
+                    senderMessage,
+                },
+            },
+        },
+    }
+	*/
+	/*
 	filter := bson.M{"id": message.ConvID}
 	update := bson.M{
+		"$set": bson.M{
+			"participants.user1.messages": bson.M{
+				"$cond": bson.M{
+					"if": bson.M{"$eq": []string{"$participants.user1.username", message.To}},
+					"then": bson.M{"$concatArrays": []interface{}{"$participants.user1.messages", []Message{recipientMessage}}},
+					"else":	bson.M{"$concatArrays": []interface{}{"$participants.user1.messages", []Message{senderMessage}}},
+				},
+			},
+			"participants.user2.messages": bson.M{
+				"$cond": bson.M{
+					"if": bson.M{"$eq": []string{"$participants.user2.username", message.To}},
+					"then": bson.M{"$concatArrays": []interface{}{"$participants.user2.messages", []Message{recipientMessage}}},
+					"else":	bson.M{"$concatArrays": []interface{}{"$participants.user2.messages", []Message{senderMessage}}},
+				},
+			},
+		},
+	}
+	*/
+	/*
+	filter := bson.M{"id": message.ConvID}
+	var conversation Conversation
+	err := coll.FindOne(ctx, filter).Decode(&conversation)
+	if err != nil {
+	if err == mongo.ErrNoDocuments {
+		return fmt.Errorf("no conversation found with id %s", message.ConvID)
+		}
+		return fmt.Errorf("error finding conversation: %w", err)
+	}
+
+	for participant, participantInfo := range conversation.Participants {
+		if participantInfo.Username == message.To {
+			updatedParticipantInfo := participantInfo
+			updatedParticipantInfo.Messages = append(updatedParticipantInfo.Messages, recipientMessage)
+			conversation.Participants[participant] = updatedParticipantInfo
+			break
+		}
+	}
+
+	for participant, participantInfo := range conversation.Participants {
+		if participantInfo.Username == message.From {
+			updatedParticipantInfo := participantInfo
+			updatedParticipantInfo.Messages = append(updatedParticipantInfo.Messages, senderMessage)
+			conversation.Participants[participant] = updatedParticipantInfo
+			break
+		}
+	}
+
+	update := bson.M{"$set": bson.M{"participants": conversation.Participants}}
+	*/
+	/*
+	_, err := coll.UpdateOne(ctx, filter, update)
+	if err != nil {
+		return fmt.Errorf("error updating conversation: %w", err)
+	}
+	return nil
+*/
+	/*
+	recipientUpdate := bson.M{
 		"$push": bson.M{
-			"messages": message,
+			"participants." + message.To + ".messages": recipientMessage,
 		},
 	}
 
@@ -140,6 +269,8 @@ func addMessageToConversation(message Message) error {
 	if res.MatchedCount == 0 {
 		return fmt.Errorf("no conversation found with id %s", message.ConvID)
 	}
+	return nil
+	*/
 	return nil
 }
 
@@ -176,23 +307,41 @@ func getUserConversation(username string, id string) (Conversation, error) {
 // ***********************************************
 func getUserConversations(username string) ([]Conversation, error) {
 	log.Println("in getUserConversations")
-	ctx := context.TODO()
 
+	ctx := context.TODO()
 	collection := dbclient.Database(dbname).Collection("conversations")
-	query := bson.M{"participants": username}
+
+	query := bson.M{
+		"$or": []bson.M{
+			{"participants.user1.username": username},
+			{"participants.user2.username": username},
+		},
+	}
 	cursor, err := collection.Find(ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
-
 	var conversations []Conversation
 	for cursor.Next(ctx) {
+		var usernumber = 1
+		userfield := fmt.Sprintf("%s%d", "user", usernumber)
 		var conversation Conversation
 		if err := cursor.Decode(&conversation); err != nil {
 			return nil, err
 		}
+		var participantInfo Participant
+		if conversation.Participants["user1"].Username == username {
+			participantInfo = conversation.Participants["user1"]
+		} else if conversation.Participants["user2"].Username == username {
+			participantInfo = conversation.Participants["user2"]
+		}
+		conversation.Participants = map[string]Participant {
+			userfield: participantInfo,
+		}
+
 		conversations = append(conversations, conversation)
+		usernumber += 1
 	}
 	if err := cursor.Err(); err != nil {
 		return nil, err

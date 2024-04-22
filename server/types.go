@@ -16,12 +16,20 @@ type Message struct {
 	To        string     `bson:"to"`
 	From      string     `bson:"from"`
 	Content   string     `bson:"content"`
+	Content2   string     `bson:"content2"`
 	Timestamp *time.Time `bson:"timestamp,omitempty"`
+	IsDuplicate bool `bson:"isDuplicate"`
+	OriginalMessageID string `bson:"originalMessageId, omitempty"`
+}
+type Participant struct {
+	Username string `bson:"username"`
+	Partner string `bson:"partner"`
+	PublicKey string `bson:"publicKey"`
+	Messages     []Message `bson:"messages"`
 }
 type Conversation struct {
 	ID           string    `bson:"id"`
-	Participants []string  `bson:"participants"`
-	Messages     []Message `bson:"messages"`
+	Participants map[string]Participant `bson:"participants"`
 }
 type DeleteMessageResponse struct {
 	Type         string       `json:"type"`
