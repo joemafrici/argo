@@ -80,6 +80,8 @@ function sendMessage(message) {
   } else {
     partner = currentConversation.Participants[0];
   }
+  // TODO: encrypt message with partner's public key.. store in content
+  // TODO: encrypt message with own public key.. store in content2 
   var content2msg = message + " encrypted";
   const chatMessage = {
     To: currentConversation.Participants.user1.Partner,
@@ -128,6 +130,7 @@ function initializeChat() {
       } else if (data.type && data.type === 'conversationUpdate') {
         // this was for delete I think
         // TODO: need to change this since conversations have changed
+        // TODO: maybe should do decryption here
         onConversationUpdate(data.conversation);
       } else {
         handleIncomingMessage(data);
@@ -149,7 +152,14 @@ function handleIncomingMessage(message) {
   console.log('in handleIncomingMessage');
   console.log('message is ');
   console.log(message);
+  // TODO: retrieve derivedKey from localstorage
+  // TODO: retrieve encryptedPrivateKey from localstorage
+  // TODO: decrypt encryptedPrivateKey with derivedKey
+  // TODO: decrypt message contentn with privateKey
   // TODO: message currently doesn't have a type field I think
+  // TODO: ACTUALLY i THINK MAYBE DO IT IN UPDATEMESSAGELIST
+  // TODO: BECAUSE FETCH CONVERSATIONS CALLS UPDATEMESSAGELIST
+  // TODO: AND HANDLEINCOMEINGMESSAGE ALSO CALLS UPDATEMESSAGELIST
   wsStatus();
   const currentConversation = conversations.find(
     conversation => conversation.ID === currentConversationId
@@ -264,6 +274,7 @@ function updateMessageList(conversation) {
       conversation.Participants.username.Messages = [];
     }
     conversation.Participants.user1.Messages.forEach(message => {
+      //TODO: DECRYPT HERE PROB
       addMessageToList(message);
     });
   }

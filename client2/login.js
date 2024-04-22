@@ -4,7 +4,6 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
   e.preventDefault();
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
-
   try {
     const response = await fetch('http://localhost:3001/api/login', {
       method: 'POST',
@@ -21,8 +20,16 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       localStorage.setItem('username', username);
       // TODO: use this line after retrieving key from localstorage
       //const publicKey = await encrypt.createPublicCryptoKey(data.keys.public);
+      // TODO: get the salt from the response
+      // TODO: generate and send salt upon register
+      // TODO: get server to accept salt and store in register handler
+      // TODO: get server to send salt on login handler
+      const derivedKey = encrypt.generateDerivedKey(password, salt);
+      // TODO: derived key may need to be in some storable form
+      localStorage.setItem('derivedKey', derivedKey);
       localStorage.setItem('publicKey', data.keys.public);
       localStorage.setItem('privateKey', data.keys.encryptedPrivate);
+      
       window.location.href = 'chat.html';
     } else {
       console.error('Login failed');

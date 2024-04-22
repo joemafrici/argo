@@ -1,3 +1,99 @@
+export async function generateDerivedKey(password, salt) {
+  console.log('Generating derived key');
+  const passwordKey = await window.crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(password),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey'],
+  );
+  const derivedKey = await window.crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: salt, iterations: 100000, hash: 'SHA-256' },
+    passwordKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+  return derivedKey;
+}
+export async function encryptPrivateKey(privKey) {
+  try {
+    if (!derivedKey) {
+      throw new Error('Derived key is not set');
+    }
+
+    const privKeyBuffer = await window.crypto.subtle.exportKey('pkcs8', privKey);
+    const iv = window.crypto.getRandomValues(new Uint8Array(12));
+    const encryptedKeyBuffer = await window.crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: iv },
+      derivedKey,
+      privKeyBuffer
+    );
+
+    const resultBuffer = new Uint8Array(iv.byteLength + encryptedKeyBuffer.byteLength);
+    resultBuffer.set(new Uint8Array(iv), 0);
+    resultBuffer.set(new Uint8Array(encryptedKeyBuffer), iv.byteLength);
+    return arrayBufferToBase64(resultBuffer);
+  } catch (err) {
+    console.error('Failed to encrypt private key', err); 
+    return null;
+  }
+}
+export async function decryptPrivateKey(encryptedData) {
+  if (!derivedKey) {
+    throw new Error('Derived key is not set');
+  }
+  const dataBuffer = base64ToArrayBuffer(encryptedData);
+  if (!dataBuffer) {
+    throw new Error('Failed to convert encrypted data to ArrayBuffer');
+  }
+  const iv = dataBuffer.slice(0, 12);
+  const encryptedKeyBuffer = dataBuffer.slice(12);
+
+  const privateKeyBuffer = await window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv },
+    derivedKey,
+    encryptedKeyBuffer
+  ).catch(err => {
+      throw new Error('Failed to decrypt private key: ' + err);
+  });
+
+  const privateKey = await window.crypto.subtle.importKey(
+    'pkcs8',
+    privateKeyBuffer,
+    { name: 'RSA-OAEP', hash: 'SHA-256'},
+    true,
+    ['encrypt', 'decrypt']
+  ).catch(err => {
+      throw new Error('Failed to import private key: ' + err);
+  });
+
+  return privateKey;
+}
+
+export async function encryptMessage(message, key) {
+  console.log('in encryptMessage.. derived key:', derivedKey);
+  if (!derivedKey) {
+    throw new Error('Derived key is not set');
+  }
+
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const encryptedMessage = await window.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv },
+    key,
+    new TextEncoder().encode(message)
+  );
+
+  const combined = new Uint8Array(iv.length + encryptedMessage.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encryptedMessage), iv.length);
+
+  try {
+    return arrayBufferToBase64(combined.buffer);
+  } catch (err) {
+    throw new Error('Failed to convert encrypted message to base64: ' + err);
+  }
+}
 export async function sendKeys(publicKey, encryptedPrivateKey) {
   const token = localStorage.getItem('token');
   if (!token) {
