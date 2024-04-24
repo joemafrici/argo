@@ -126,7 +126,6 @@ export async function decryptMessage(encryptedMessage, privateKey) {
       privateKey,
       encryptedData
     );
-    console.log('after decrypting message');
     const decoder = new TextDecoder();
     return decoder.decode(decryptedData);
   } catch (err) {

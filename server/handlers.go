@@ -32,14 +32,11 @@ func HandleSendSalt(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Println("got salt")
-	log.Println(saltRequest.Salt)
 	username, ok := r.Context().Value("username").(string)
 	if !ok {
 		http.Error(w, "Invalid user context", http.StatusInternalServerError)
 		return
 	}
-	log.Println("saving to", username)
 	c := dbclient.Database(dbname).Collection("users")
 	f := bson.M{"username": username}
 	u := bson.M{
@@ -231,7 +228,6 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		EncryptedPrivateKey: newUser.EncryptedPrivateKey,
 		SaltBase64: newUser.SaltBase64,
 	}
-	log.Println("new user salt is: ", userToInsert.SaltBase64)
 
 	_, err = dbclient.Database(dbname).Collection("users").InsertOne(context.TODO(), userToInsert)
 	if err != nil {
@@ -558,6 +554,8 @@ func HandleConnection(username string, conn *websocket.Conn) {
 		if err := json.Unmarshal(p, &message); err != nil {
 			log.Println("Unmarshal", err)
 		}
+		log.Println("message object from client")
+		log.Println(message)
 
 		if message.Timestamp == nil {
 			now := time.Now()
@@ -611,7 +609,6 @@ func HandleConnection(username string, conn *websocket.Conn) {
 				delete(clients, message.From)
 				clientsMu.Unlock()
 			}
-			log.Println("echoed: ", senderMessage)
 		} else {
 			log.Println(message.From, "is not logged in")
 		}

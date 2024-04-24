@@ -90,7 +90,6 @@ async function sendMessage(message) {
   const selfPublicKeyBase64 = localStorage.getItem('publicKey');
   const selfPublicKey = await encrypt.createPublicCryptoKey(selfPublicKeyBase64);
   const encryptedForSelf = await encrypt.encryptMessage(message, selfPublicKey);
-
   //var content2msg = message + " encrypted";
   const chatMessage = {
     To: currentConversation.Participants.user1.Partner,
@@ -99,6 +98,8 @@ async function sendMessage(message) {
     Content: encryptedForPartner,
     Content2: encryptedForSelf 
   };
+  console.log('sending message');
+  console.log(chatMessage);
   if (socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(chatMessage));
   } else {
@@ -142,9 +143,6 @@ function initializeChat() {
         // TODO: maybe should do decryption here
         onConversationUpdate(data.conversation);
       } else {
-        // TODO: DECRYPT HERE
-        //console.log('what does this look like');
-        //console.log(data);
         const derivedKey = await encrypt.retrieveDerivedKey();
         // Retrieve encryptedPrivateKey from localstorage
         const encryptedPrivateKey = localStorage.getItem('privateKey');
@@ -152,8 +150,6 @@ function initializeChat() {
         const privateKey = await encrypt.decryptPrivateKey(encryptedPrivateKey, derivedKey);
         const decryptedMessage = await encrypt.decryptMessage(data.Content, privateKey);
         data.Content = decryptedMessage;
-        //console.log('data with decrypted content');
-        //console.log(data.Content);
         handleIncomingMessage(data);
       }
     };
@@ -272,6 +268,8 @@ const fetchConversations = async () => {
         updateMessageList(conversations[cidx]);
       });
       conversationList.appendChild(listItem);
+      console.log('got conversation');
+      console.log(conversations);
     }
   } catch (error) {
     console.error('Failed to fetch conversations', error);
