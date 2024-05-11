@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Argo</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="chat.js" defer></script>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="conversation-list">
+      <h2>Conversations</h2>
+      <ul id="conversationList">
+        <!-- Conversation list items will be dynamically populated here -->
+      </ul>
+      <div class="new-conversation">
+        <input type="text" id="newConversationInput" placeholder="Enter username...">
+        <button id="newConversationButton">New Conversation</button>
+      </div>
+    </div>
+    <div class="active-conversation">
+      <div id="messageList" class="message-list">
+        <!-- Message elements will be dynamically populated here -->
+      </div>
+      <div class="message-input">
+        <input type="text" id="messageInput" placeholder="Type your message...">
+        <button id="sendButton">Send</button>
+      </div>
+    </div>
+  </div>
