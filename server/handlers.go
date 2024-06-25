@@ -426,6 +426,7 @@ func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conversations, err := getUserConversations(username)
+	log.Println(conversations)
 	if err != nil {
 		log.Println("conversations err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
