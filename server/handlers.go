@@ -1,8 +1,8 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/joemafrici/argo/utils"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,15 +34,7 @@ func HandleSendSalt(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid user context", http.StatusInternalServerError)
 		return
 	}
-	c := dbclient.Database(dbname).Collection("users")
-	f := bson.M{"username": username}
-	u := bson.M{
-		"$set": bson.M{
-			"salt": saltRequest.Salt,
-		},
-	}
-
-	_, err := c.UpdateOne(context.TODO(), f, u)
+	err := db.StoreUserSalt(username, saltRequest.Salt)
 	if err != nil {
 		http.Error(w, "Failed to store salt", http.StatusInternalServerError)
 		return
@@ -75,16 +66,7 @@ func HandleSendKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	c := dbclient.Database(dbname).Collection("users")
-	f := bson.M{"username": username}
-	u := bson.M{
-		"$set": bson.M{
-			"publicKey":           keysRequest.PublicKey,
-			"encryptedPrivateKey": keysRequest.EncryptedPrivateKey,
-		},
-	}
-
-	_, err := c.UpdateOne(context.TODO(), f, u)
+	err := db.StoreUserKeys(username, keysRequest.PublicKey, keysRequest.EncryptedPrivateKey)
 	if err != nil {
 		http.Error(w, "Failed to store keys", http.StatusInternalServerError)
 		return
@@ -188,9 +170,9 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		log.Println(err.Error())
 		return
 	}
-	var existingUser User
-	filter := bson.M{"username": newUser.Username}
-	err := dbclient.Database(dbname).Collection("users").FindOne(context.TODO(), filter).Decode(&existingUser)
+
+	_, err := db.FindUserByUsername(newUser.Username)
+
 	if err == nil {
 		http.Error(w, "User already exists", http.StatusConflict)
 		return
@@ -213,7 +195,7 @@ func HandleRegister(w http.ResponseWriter, r *http.Request) {
 		SaltBase64:          newUser.SaltBase64,
 	}
 
-	_, err = dbclient.Database(dbname).Collection("users").InsertOne(context.TODO(), userToInsert)
+	err = db.CreateUser(userToInsert)
 	if err != nil {
 		http.Error(w, "Failed to create new user", http.StatusInternalServerError)
 		return
@@ -231,11 +213,11 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var storedUser User
-	filter := bson.M{"username": loginUser.Username}
-	err := dbclient.Database(dbname).Collection("users").FindOne(context.TODO(), filter).Decode(&storedUser)
+	storedUser, err := db.FindUserByUsername(loginUser.Username)
 	if err != nil {
 		http.Error(w, "user not found", http.StatusUnauthorized)
 	}
+
 	err = bcrypt.CompareHashAndPassword([]byte(storedUser.Password), []byte(loginUser.Password))
 	if err != nil {
 		log.Println("Invalid Credentials", err)
@@ -288,6 +270,34 @@ func HandleLogin(w http.ResponseWriter, r *http.Request) {
 //	}
 //
 // ***********************************************
+func validateAndFetchParticipants(requestParticipants []struct {
+	Username  string `json:"username"`
+	PublicKey string `json:"publicKey"`
+}, currentUser string) (map[string]Participant, error) {
+	participants := make(map[string]Participant)
+	for _, p := range requestParticipants {
+		user, err := db.FindUserByUsername(p.Username)
+		if err != nil {
+			if err == mongo.ErrNoDocuments {
+				return nil, fmt.Errorf("User %s does not exist", p.Username)
+			}
+			return nil, fmt.Errorf("Failed to fetch user %s: %w", p.Username, err)
+		}
+
+		participants[p.Username] = Participant{
+			Username:  user.Username,
+			PublicKey: user.PublicKey,
+		}
+	}
+
+	if _, exists := participants[currentUser]; !exists {
+		return nil, fmt.Errorf("current user must be included in the conversation")
+	}
+
+	return participants, nil
+}
+
+// ***********************************************
 func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -301,81 +311,81 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var requestData struct {
-		Partner string `json:"partner"`
+		Participants []struct {
+			Username  string `json:"username"`
+			PublicKey string `json:"publicKey"`
+		} `json:"participants"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
-	c := dbclient.Database("argodb").Collection("users")
-	f := bson.D{{Key: "username", Value: requestData.Partner}}
-	var partnerUser bson.M
-	err := c.FindOne(context.TODO(), f).Decode(&partnerUser)
+	participants, err := validateAndFetchParticipants(requestData.Participants, usr)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			http.Error(w, "User does not exist: "+requestData.Partner, http.StatusNotFound)
-			return
-		} else {
-			http.Error(w, "Failed to search for user: "+requestData.Partner, http.StatusInternalServerError)
-			return
-		}
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	f = bson.D{{Key: "username", Value: usr}}
-	var user bson.M
-	err = c.FindOne(context.TODO(), f).Decode(&user)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			http.Error(w, "User does not exist: "+usr, http.StatusNotFound)
-			return
-		} else {
-			http.Error(w, "Failed to search for user: "+usr, http.StatusInternalServerError)
-			return
-		}
-	}
-
-	// TODO: get from database
-	usrPublicKey := user["publicKey"].(string)
-	partnerPublicKey := partnerUser["publicKey"].(string)
-	participants := map[string]Participant{
-		"user1": {
-			Username:  usr,
-			Partner:   requestData.Partner,
-			PublicKey: partnerPublicKey,
-			Messages:  []Message{},
-		},
-		"user2": {
-			Username:  requestData.Partner,
-			Partner:   usr,
-			PublicKey: usrPublicKey,
-			Messages:  []Message{},
-		},
-	}
-	/*
-		participants := []string{usr, requestData.Partner}
-		newConversation := Conversation{
-			ID:       uuid.NewString(),
-			Participants:  participants,
-			Messages: []Message{},
-		}
-	*/
 
 	newConversation := Conversation{
 		ID:           uuid.NewString(),
 		Participants: participants,
 	}
 
-	coll := dbclient.Database("argodb").Collection("conversations")
-	_, err = coll.InsertOne(context.TODO(), newConversation)
-	if err != nil {
+	if err := db.CreateConversation(newConversation); err != nil {
 		http.Error(w, "Failed to create conversation", http.StatusInternalServerError)
 	}
+
 	json.NewEncoder(w).Encode(newConversation)
 }
 
 // ***********************************************
+func HandleSymmetricKey(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	usr, ok := r.Context().Value("username").(string)
+	if !ok {
+		http.Error(w, "Invalid user context", http.StatusInternalServerError)
+		return
+	}
+
+	var req struct {
+		ConversationID string            `json:"ConversationId"`
+		EncryptedKeys  map[string]string `json:"EncryptedKeys"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	}
+
+	conversation, err := db.GetUserConversation(usr, req.ConversationID)
+	if err != nil {
+		http.Error(w, "Conversation not found", http.StatusNotFound)
+		return
+	}
+	if _, exists := conversation.Participants[usr]; !exists {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	for username, encryptedKey := range req.EncryptedKeys {
+		err := db.UpdateParticipantSymmetricKey(req.ConversationID, username, encryptedKey)
+		if err != nil {
+			log.Printf("Error updating symmetric key for user %s: %v", username, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// ***********************************************
 func HandleGetUserConversation(w http.ResponseWriter, r *http.Request) {
-	if dbclient == nil {
+	if db == nil {
 		http.Error(w, "Unable to retrieve conversations", http.StatusInternalServerError)
 		log.Println("handleGetUserConversations client is nil")
 		return
@@ -397,7 +407,7 @@ func HandleGetUserConversation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conversation, err := getUserConversation(username, conversationID)
+	conversation, err := db.GetUserConversation(username, conversationID)
 	if err != nil {
 		log.Println("conversations err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -409,7 +419,7 @@ func HandleGetUserConversation(w http.ResponseWriter, r *http.Request) {
 
 // ***********************************************
 func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
-	if dbclient == nil {
+	if db == nil {
 		http.Error(w, "Unable to retrieve conversations", http.StatusInternalServerError)
 		log.Println("handleGetUserConversations client is nil")
 		return
@@ -425,8 +435,7 @@ func HandleGetUserConversations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	conversations, err := getUserConversations(username)
-	log.Println(conversations)
+	conversations, err := db.GetUserConversations(username)
 	if err != nil {
 		log.Println("conversations err", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -523,75 +532,64 @@ func HandleConnection(username string, conn *websocket.Conn) {
 			closeConnection(conn)
 			return
 		}
-		var message Message
-		if err := json.Unmarshal(p, &message); err != nil {
+		var receivedMessage Message
+		if err := json.Unmarshal(p, &receivedMessage); err != nil {
 			log.Println("Unmarshal", err)
 		}
 
-		if message.Timestamp == nil {
+		if receivedMessage.Timestamp == nil {
 			now := time.Now()
-			message.Timestamp = &now
+			receivedMessage.Timestamp = &now
 		}
-		if message.ID == "" {
-			message.ID = uuid.NewString()
-		}
-
-		recipientMessage := Message{
-			ID:        message.ID,
-			ConvID:    message.ConvID,
-			To:        message.To,
-			From:      message.From,
-			Content:   message.Content,
-			Timestamp: message.Timestamp,
-		}
-		senderMessage := Message{
-			ID:        message.ID,
-			ConvID:    message.ConvID,
-			To:        message.To,
-			From:      message.From,
-			Content:   message.Content2,
-			Timestamp: message.Timestamp,
+		if receivedMessage.ID == "" {
+			receivedMessage.ID = uuid.NewString()
 		}
 
-		recipientBytes, err := json.Marshal(recipientMessage)
-		if err != nil {
-			log.Println("Marshal", err)
+		forwardMessage := Message{
+			ID:        receivedMessage.ID,
+			ConvID:    receivedMessage.ConvID,
+			To:        receivedMessage.To,
+			From:      receivedMessage.From,
+			Content:   receivedMessage.Content,
+			Timestamp: receivedMessage.Timestamp,
 		}
-		senderBytes, err := json.Marshal(senderMessage)
+
+		forwardMessageBytes, err := json.Marshal(forwardMessage)
 		if err != nil {
 			log.Println("Marshal", err)
 		}
 
 		clientsMu.RLock()
-		recipientConn, recipientExists := clients[message.To]
-		senderConn, senderExists := clients[message.From]
+		recipientConn, recipientExists := clients[receivedMessage.To]
+		senderConn, senderExists := clients[receivedMessage.From]
 		clientsMu.RUnlock()
-
+		// TODO: should probably store the message in the database
+		// before sending it to the users
 		if senderExists {
 			senderConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := senderConn.WriteMessage(messageType, senderBytes); err != nil {
+			if err := senderConn.WriteMessage(messageType, forwardMessageBytes); err != nil {
 				log.Println("Error writing message to echo connection:", err)
 				closeConnection(senderConn)
 				clientsMu.Lock()
-				delete(clients, message.From)
+				delete(clients, receivedMessage.From)
 				clientsMu.Unlock()
 			}
 		} else {
-			log.Println(message.From, "is not logged in")
+			log.Println(receivedMessage.From, "is not logged in")
 		}
 		if recipientExists {
 			recipientConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-			if err := recipientConn.WriteMessage(messageType, recipientBytes); err != nil {
+			if err := recipientConn.WriteMessage(messageType, forwardMessageBytes); err != nil {
 				log.Println("Error writng message to recipient connection:", err)
 				closeConnection(recipientConn)
 				clientsMu.Lock()
-				delete(clients, message.To)
+				delete(clients, receivedMessage.To)
 				clientsMu.Unlock()
 			}
 		} else {
-			log.Println(message.To, "is not logged in")
+			log.Println(receivedMessage.To, "is not logged in")
 		}
-		if err := addMessageToConversation(message); err != nil {
+		if err := db.AddMessageToConversation(forwardMessage); err != nil {
 			utils.HandleDatabaseError(err)
 		}
 	}

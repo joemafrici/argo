@@ -2,17 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
 
 	"github.com/golang-jwt/jwt"
 	"github.com/joemafrici/argo/utils"
-
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/gorilla/websocket"
 )
@@ -22,7 +17,7 @@ var (
 	clientsMu = &sync.RWMutex{}
 	clients   = make(map[string]*websocket.Conn, 0)
 	dbname    = "argodb"
-	dbclient  *mongo.Client
+	db        *DBClient
 )
 
 const (
@@ -39,21 +34,11 @@ func main() {
 	log.Println("connecting to database")
 	cs := "mongodb://localhost:27017"
 	var err error
-	dbclient, err = mongo.Connect(context.TODO(), options.Client().ApplyURI(cs))
+	db, err = NewDBClient(cs, dbname)
 	if err != nil {
-		log.Fatal("mongo.Connect", err)
+		log.Fatal("Failed to connect to database", err)
 	}
-
-	err = dbclient.Ping(context.TODO(), nil)
-	if err != nil {
-		log.Fatal("client.Ping", err)
-	}
-
-	defer func() {
-		if err = dbclient.Disconnect(context.TODO()); err != nil {
-			log.Fatal("client.Disconnect", err)
-		}
-	}()
+	defer db.Close()
 
 	mux := http.NewServeMux()
 	port := ":3001"
@@ -64,6 +49,7 @@ func main() {
 	mux.Handle("/api/conversations", loggingMiddleware(protectedEndpoint(HandleGetUserConversations)))
 	//mux.Handle("/api/conversation", loggingMiddleware(protectedEndpoint(HandleGetUserConversation)))
 	mux.Handle("/api/create-conversation", loggingMiddleware(protectedEndpoint(HandleCreateConversation)))
+	mux.Handle("/api/symmetric-key", loggingMiddleware(protectedEndpoint(HandleSymmetricKey)))
 	mux.Handle("/api/delete-message", loggingMiddleware(protectedEndpoint(HandleDeleteMessage)))
 	mux.Handle("/api/keys", loggingMiddleware(protectedEndpoint(HandleSendKeys)))
 	mux.Handle("/api/salt", loggingMiddleware(protectedEndpoint(HandleSendSalt)))
@@ -117,38 +103,6 @@ func protectedEndpoint(handler http.HandlerFunc) http.HandlerFunc {
 }
 
 // ***********************************************
-func addMessageToConversation(message Message) error {
-	ctx := context.TODO()
-	coll := dbclient.Database(dbname).Collection("conversations")
-
-	// Find the conversation document
-	filter := bson.M{"id": message.ConvID}
-
-	// Update the recipient's messages array
-	update := bson.M{
-		"$push": bson.M{
-			"messages": bson.M{
-				"content":  message.Content,
-				"content2": message.Content2,
-			},
-		},
-	}
-
-	// Perform the update operation
-	result, err := coll.UpdateOne(ctx, filter, update)
-	if err != nil {
-		return fmt.Errorf("error updating recipient's messages: %w", err)
-	}
-	if result.MatchedCount == 0 {
-		return fmt.Errorf("no conversation found with id %s", message.ConvID)
-	}
-	if result.ModifiedCount == 0 {
-		return fmt.Errorf("no updates performed on the conversation with id %s", message.ConvID)
-	}
-	return nil
-}
-
-// ***********************************************
 func closeConnection(conn *websocket.Conn) {
 	message := websocket.FormatCloseMessage(websocket.CloseNormalClosure, "")
 	conn.WriteMessage(websocket.CloseMessage, message)
@@ -157,74 +111,4 @@ func closeConnection(conn *websocket.Conn) {
 	if err != nil {
 		log.Println("error closing WebSocket connection", err)
 	}
-}
-
-// ***********************************************
-func getUserConversation(username string, id string) (Conversation, error) {
-	var conversation Conversation
-	collection := dbclient.Database(dbname).Collection("conversations")
-	filter := bson.M{"id": id}
-	err := collection.FindOne(context.TODO(), filter).Decode(&conversation)
-	if err != nil {
-		return Conversation{}, err
-	}
-
-	return conversation, nil
-}
-
-// ***********************************************
-func getUserConversations(username string) ([]Conversation, error) {
-	ctx := context.TODO()
-	collection := dbclient.Database(dbname).Collection("conversations")
-
-	query := bson.M{
-		"participants": username,
-	}
-	cursor, err := collection.Find(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var conversations []Conversation
-	for cursor.Next(ctx) {
-		var conversation Conversation
-		if err := cursor.Decode(&conversation); err != nil {
-			return nil, err
-		}
-		conversations = append(conversations, conversation)
-	}
-	if err := cursor.Err(); err != nil {
-		return nil, err
-	}
-	log.Println(conversations)
-	return conversations, nil
-}
-
-// ***********************************************
-func getAllConversations(client *mongo.Client) ([]Conversation, error) {
-	ctx := context.TODO()
-
-	var conversations []Conversation
-	collection := client.Database(dbname).Collection("conversations")
-	query := bson.M{}
-	cursor, err := collection.Find(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-
-	defer cursor.Close(ctx)
-
-	for cursor.Next(ctx) {
-		var conversation Conversation
-		if err := cursor.Decode(&conversation); err != nil {
-			return nil, err
-		}
-		conversations = append(conversations, conversation)
-	}
-
-	if err := cursor.Err(); err != nil {
-		return nil, err
-	}
-	return conversations, nil
 }

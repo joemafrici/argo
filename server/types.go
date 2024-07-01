@@ -9,7 +9,7 @@ type User struct {
 	Password            string `bson:"password"`
 	PublicKey           string `bson:"publicKey"`
 	EncryptedPrivateKey string `bson:"encryptedPrivateKey"`
-	SaltBase64 string `bson:"saltBase64"`
+	SaltBase64          string `bson:"saltBase64"`
 }
 type Message struct {
 	ID        string     `bson:"id"`
@@ -17,20 +17,17 @@ type Message struct {
 	To        string     `bson:"to"`
 	From      string     `bson:"from"`
 	Content   string     `bson:"content"`
-	Content2   string     `bson:"content2"`
 	Timestamp *time.Time `bson:"timestamp,omitempty"`
-	IsDuplicate bool `bson:"isDuplicate"`
-	OriginalMessageID string `bson:"originalMessageId, omitempty"`
 }
 type Participant struct {
-	Username string `bson:"username"`
-	Partner string `bson:"partner"`
-	PublicKey string `bson:"publicKey"`
-	Messages     []Message `bson:"messages"`
+	Username              string `bson:"username"`
+	PublicKey             string `bson:"publicKey"`
+	EncryptedSymmetricKey string `bson:"encryptedSymmetricKey"`
 }
 type Conversation struct {
-	ID           string    `bson:"id"`
+	ID           string                 `bson:"id"`
 	Participants map[string]Participant `bson:"participants"`
+	Messages     []Message              `bson:"messages"`
 }
 type DeleteMessageResponse struct {
 	Type         string       `json:"type"`
@@ -38,12 +35,13 @@ type DeleteMessageResponse struct {
 }
 type LoginResponse struct {
 	Token string `json:"token"`
-	Keys struct {
-		Public string `json:"public"`
+	Keys  struct {
+		Public           string `json:"public"`
 		EncryptedPrivate string `json:"encryptedPrivate"`
-		SaltBase64 string `json:"saltBase64"`
+		SaltBase64       string `json:"saltBase64"`
 	} `json:"keys"`
 }
+
 // type Keys struct {
 // 	PublicKey string `json:"publicKey"`
 // 	EncryptedPrivateKey string `json:"encryptedPrivateKey"`

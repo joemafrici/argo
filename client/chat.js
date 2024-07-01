@@ -1,11 +1,5 @@
 import { Conversation } from './conversation.js';
 import * as encrypt from './encrypt.js';
-// Tell me about regression tests... what are they?
-// Are they appropriate for this scenario?
-//
-//
-//
-//
 
 const conversationList = document.getElementById('conversationList');
 const messageList = document.getElementById('messageList');
@@ -20,12 +14,6 @@ let socket;
 let conversations = new Map();
 let currentConversationId = null;
 
-// ***********************************************
-function wsStatus() {
-  if (socket.readyState !== WebSocket.OPEN) {
-    console.error('socket is not ready');
-  }
-}
 // ***********************************************
 function initializeWebSocket() {
   const token = localStorage.getItem('token');
@@ -55,7 +43,7 @@ function initializeWebSocket() {
       // The server sends a conversation update when a partner deletes a message
       handleConversationUpdate(data.conversation);
     } else {
-      await handleIncomingEncryptedMessage(data);
+      await handleIncomingMessage(data);
     }
   };
   socket.onclose = event => {
@@ -67,33 +55,9 @@ function initializeWebSocket() {
   }
 }
 // ***********************************************
-function deleteMessage(messageID) {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    console.error('No token found');
-  }
-
-  fetch('http://localhost:3001/api/delete-message', {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({ currentConversationId, messageID }),
-  })
-    .then(response => {
-      if (!response.ok) {
-        console.error('Failed to delete message:', response.status);
-      }
-    })
-    .catch(error => {
-      console.error('Error deleting message: ', error);
-    });
-}
-// ***********************************************
-const fetchConversations = async () => {
-  const token = localStorage.getItem('token');
+async function fetchConversations() {
   try {
+    const token = localStorage.getItem('token');
     if (!token) {
       throw new Error('No token found');
     }
@@ -105,22 +69,27 @@ const fetchConversations = async () => {
         'Authorization': `Bearer ${token}`
       },
     });
+
     if (!response.ok) {
       throw new Error('Network response was not ok');
     }
 
     let fetchedConversations = await response.json();
-    fetchedConversations.forEach(conv => {
-      let conversation = new Conversation(conv.ID, conv.Participants);
-      conversation.messages = conv.Messages;
+    if (!fetchedConversations) {
+      console.log('no conversations to fetch');
+      return;
+    }
 
-      conversations.set(conv.ID, conversation);
-    });
-    // WARN: this could be a problem... who should be
-    // rendering the conversation list??
+    for (let convData of fetchedConversations) {
+      let conversation = await Conversation.fromExisting(convData);
+
+      //await conversation.initializeSymmetricKey();
+      conversations.set(convData.ID, conversation);
+    }
+
     renderConversationList();
-  } catch (error) {
-    console.error('Failed to fetch conversations', error);
+  } catch (err) {
+    console.error('Failed to fetch conversations', err);
   }
 }
 // ***********************************************
@@ -158,40 +127,11 @@ function setupEventListeners() {
   const sendButton = document.getElementById('sendButton');
   sendButton.addEventListener('click', handleSendMessage);
 
-
-
   messageInput.addEventListener('keydown', handleMessageInputKeyDown);
   newConversationButton.addEventListener('click', handleNewConversation);
   logoutButton.addEventListener('click', handleLogoutPress);
 }
 
-// ***********************************************
-function createNewConversation(partner) {
-  const token = localStorage.getItem('token');
-  if (!token) {
-    console.error('No token found');
-  }
-  fetch(`http://localhost:3001/api/create-conversation`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify({ partner: partner }),
-  })
-    .then(response => response.json())
-    .then(data => {
-      if (!conversations) {
-        conversations = [];
-      }
-      // WARN: may not be handling this correctly... push on a map??
-      // ... should be set..
-      // mayb not call renderConversationList also
-      conversations.push(data);
-      renderConversationList();
-    })
-    .catch(error => console.error('Error creating new conversation', error));
-}
 // ***********************************************
 // Render UI
 // ***********************************************
@@ -199,69 +139,23 @@ function createNewConversation(partner) {
 // ***********************************************
 function renderConversationList() {
   conversationList.innerHTML = '';
-  // WARN: conversations is a map so can I do this loop now???
-  // populate list
-  // use for ... of 
-  for (const cidx in conversations) {
+  const currentUser = localStorage.getItem('username');
+
+  conversations.forEach((conversation, conversationId) => {
     const listItem = document.createElement('li');
-
-    const partner = conversations[cidx].Participants.user1.Partner
-    listItem.textContent = partner;
-    listItem.addEventListener('click', async () => {
-      currentConversationId = conversations[cidx].ID;
-      const decryptedConvo = await encrypt.decryptConversation(conversations[cidx]);
-      conversations[cidx] = decryptedConvo;
-      updateMessageList(conversations[cidx]);
-    });
-    conversationList.appendChild(listItem);
-  }
-}
-/* These functions are now provided by the Conversation class
-// ***********************************************
-async function updateMessageList(conversation) {
-  // Clear the existing message list
-  messageList.innerHTML = '';
-  // Populate the message list with the messages of the current conversation
-  if (conversation) {
-    console.log('in updateMessageList')
-    console.log(conversation)
-    if (!conversation.Participants.user1.Messages) {
-      conversation.Participants.username.Messages = [];
+    const partnerUsername = Object.keys(conversation.participants).find(username => username !== currentUser);
+    if (partnerUsername) {
+      listItem.textContent = partnerUsername;
+      listItem.addEventListener('click', async () => {
+        currentConversationId = conversationId;
+        conversation.renderMessages(messageList);
+      });
+      conversationList.appendChild(listItem);
+    } else {
+      console.error('Could not find partner in conversation:', conversation);
     }
-    conversation.Participants.user1.Messages.forEach(message => {
-      addMessageToList(message);
-    })
-  }
-}
-// ***********************************************
-function addMessageToList(message) {
-  const messageElement = document.createElement('div');
-  messageElement.classList.add('message');
-  messageElement.dataset.messageID = message.ID;
-
-  const senderElement = document.createElement('span');
-  senderElement.classList.add('sender');
-  senderElement.textContent = message.From + ': ';
-
-  const contentElement = document.createElement('span');
-  contentElement.classList.add('content');
-  contentElement.textContent = message.Content;
-
-  const deleteButton = document.createElement('button');
-  deleteButton.classList.add('delete-button');
-  deleteButton.textContent = 'Delete';
-  deleteButton.addEventListener('click', function() {
-    deleteMessage(message.ID);
   });
-
-  messageElement.appendChild(senderElement);
-  messageElement.appendChild(contentElement);
-  messageElement.appendChild(deleteButton);
-  messageList.appendChild(messageElement);
-
-  messageList.scrollTop = messageList.scrollHeight;
 }
-*/
 
 // ***********************************************
 // Handlers
@@ -284,35 +178,36 @@ function handleConversationUpdate(updatedConversation) {
   wsStatus();
 }
 // ***********************************************
-async function handleIncomingEncryptedMessage(data) {
-  const derivedKey = await encrypt.retrieveDerivedKey();
-  // Retrieve encryptedPrivateKey from localstorage
-  const encryptedPrivateKey = localStorage.getItem('privateKey');
-  // Decrypt encryptedPrivateKey with derivedKey
-  const privateKey = await encrypt.decryptPrivateKey(encryptedPrivateKey, derivedKey);
-  const decryptedMessage = await encrypt.decryptMessage(data.Content, privateKey);
-  data.Content = decryptedMessage;
-  handleIncomingMessage(data);
-}
-// ***********************************************
-function handleIncomingMessage(message) {
-  let conversation = conversations.get(message.ConvID);
+async function handleIncomingMessage(encryptedMessage) {
+  let conversation = conversations.get(encryptedMessage.ConvID);
 
+  // TODO: need to determine if this can actually happen
+  // since there's stuff with the key exchange and symmetric key distribution
+  // I'm thinking it can't happen where someone receives a message for a conversation they didn't already have the Conversation object for..
   if (!conversation) {
-    conversation = new Conversation(message.ConvID, message.Participants);
-    conversations.set(message.ConvID, conversation);
+    conversation = await Conversation.fromExisting({
+      id: encryptedMessage.ConvID,
+      participants: [encryptedMessage.From, encryptedMessage.To]
+    });
+    conversations.set(conversation.id, conversation);
+    updateConversationList();
+  }
 
-    if (message.ConvID === currentConversationId) {
-      conversation.renderMessages(messageList);
-    }
+  const decryptedContent = await conversation.decryptMessage(encryptedMessage.Content);
+  const decryptedMessage = {
+    ...encryptedMessage,
+    Content: decryptedContent
+  }
+  conversation.messages.push(decryptedMessage);
+
+  if (encryptedMessage.ConvID === currentConversationId) {
+    conversation.renderMessages(messageList);
   }
 }
 // ***********************************************
-async function handleSendEncryptedMessage() {
+async function handleSendMessage() {
   const messageContent = messageInput.value.trim();
-  if (messageContent == '') {
-    return;
-  }
+  if (messageContent === '') return;
 
   const currentConversation = conversations.get(currentConversationId);
   if (!currentConversation) {
@@ -321,37 +216,42 @@ async function handleSendEncryptedMessage() {
   }
 
   try {
-    const partnerPublicKeyBase64 = currentConversation.Participants.user1.PublicKey;
-    const partnerPublicKey = await encrypt.createPublicCryptoKey(partnerPublicKeyBase64);
-    // convert public key
-    const encryptedForPartner = await encrypt.encryptMessage(message, partnerPublicKey);
+    const currentUsername = localStorage.getItem('username');
+    let recipientUsername = '';
+    for (const username in currentConversation.participants) {
+      if (username !== currentUsername) {
+        recipientUsername = username;
+        // only get the first recipient username... this is fine for now since
+        // no group chat.... yet
+        break;
+      }
+    }
 
-    const selfPublicKeyBase64 = localStorage.getItem('publicKey');
-    const selfPublicKey = await encrypt.createPublicCryptoKey(selfPublicKeyBase64);
-    const encryptedForSelf = await encrypt.encryptMessage(message, selfPublicKey);
-    //var content2msg = message + " encrypted";
-    const encryptedMessage = {
-      To: currentConversation.Participants.user1.Partner,
+    if (!recipientUsername) {
+      console.error('No recipient for message');
+      return;
+    }
+
+    const encryptedContent = await currentConversation.encryptMessage(messageContent);
+    const message = {
+      To: recipientUsername,
       ConvID: currentConversationId,
       From: username,
-      Content: encryptedForPartner,
-      Content2: encryptedForSelf
+      Content: encryptedContent,
     };
-  } catch (error) {
-    console.error(error)
+
+
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(message));
+    } else {
+      throw new Error('WebSocket is not open');
+    }
+
+    messageInput.value = '';
+  } catch (err) {
+    console.error('Failed to send message:', err);
   }
 
-}
-// ***********************************************
-async function handleSendMessage() {
-  // TODO: encrypt message with partner's public key.. store in content
-  // TODO: encrypt message with own public key.. store in content2 
-
-  if (socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify(chatMessage));
-  } else {
-    console.error(socket.readyState);
-  }
 }
 // ***********************************************
 function handleMessageInputKeyDown(event) {
@@ -362,15 +262,27 @@ function handleMessageInputKeyDown(event) {
   }
 }
 // ***********************************************
-function handleNewConversation() {
+async function handleNewConversation() {
   const participant = newConversationInput.value.trim();
   if (participant !== '') {
-    createNewConversation(participant);
-    newConversationInput.value = '';
+    try {
+      const newConversation = await Conversation.create([username, participant]);
+      conversations.set(newConversation.id, newConversation);
+      renderConversationList();
+      newConversationInput.value = '';
+    } catch (err) {
+      console.error('Failed to create conversation', err);
+    }
   }
 }
 // ***********************************************
 function handleLogoutPress() {
   conversations = null;
   window.location.href = 'login.html';
+}
+// ***********************************************
+function wsStatus() {
+  if (socket.readyState !== WebSocket.OPEN) {
+    console.error('socket is not ready');
+  }
 }

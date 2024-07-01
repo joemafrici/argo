@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SERVER_PATH="/Users/deepwater/code/argo/server"
-CLIENT_PATH="/Users/deepwater/code/argo/client3"
+CLIENT_PATH="/Users/deepwater/code/argo/client"
 
 docker start mongodb
 

@@ -1,4 +1,5 @@
 import * as encrypt from './encrypt.js';
+
 // Login form submission
 document.getElementById('loginForm').addEventListener('submit', async function(e) {
   e.preventDefault();
@@ -12,7 +13,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       },
       body: JSON.stringify({ username, password }),
     });
-    
+
     const data = await response.json();
 
     if (data.token) {
@@ -26,7 +27,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
       await encrypt.storeDerivedKey(derivedKey);
       localStorage.setItem('publicKey', data.keys.public);
       localStorage.setItem('privateKey', data.keys.encryptedPrivate);
-      
+
       window.location.href = 'chat.html';
     } else {
       console.error('Login failed');
@@ -42,14 +43,14 @@ document.getElementById('registerForm').addEventListener('submit', async functio
   const username = document.getElementById('newUsername').value;
   const password = document.getElementById('newPassword').value;
   try {
-    const keyPair = await encrypt.generateKeyPair(); 
+    const keyPair = await encrypt.generateKeyPair();
     if (keyPair) {
       const salt = window.crypto.getRandomValues(new Uint8Array(16));
       const saltBase64 = encrypt.arrayBufferToBase64(salt);
       const derivedKey = await encrypt.generateDerivedKey(password, salt);
       const encryptedPrivateKey = await encrypt.encryptPrivateKey(keyPair.privateKey, derivedKey);
-      
       const publicKeyArrayBuffer = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
+
       const publicKey = encrypt.arrayBufferToBase64(publicKeyArrayBuffer);
       fetch('http://localhost:3001/api/register', {
         method: 'POST',
@@ -57,14 +58,14 @@ document.getElementById('registerForm').addEventListener('submit', async functio
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username, password, publicKey, encryptedPrivateKey: encryptedPrivateKey, saltBase64 }),
-        })
+      })
         .then(response => {
           if (!response.ok) {
             console.error('Failed to register: ', response.status);
           }
         })
         .catch(error => {
-            console.error('Error registering: ', error);
+          console.error('Error registering: ', error);
         });
     } else {
       throw new Error('keyPair not valid');
