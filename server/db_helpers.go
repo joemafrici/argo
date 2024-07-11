@@ -43,7 +43,7 @@ func (db *DBClient) Close() error {
 // ***********************************************
 func (db *DBClient) CreateConversation(conversation Conversation) error {
 	ctx := context.TODO()
-	c := db.client.Database("argodb").Collection("conversations")
+	c := db.client.Database(db.name).Collection("conversations")
 	if conversation.Messages == nil {
 		conversation.Messages = []Message{}
 	}

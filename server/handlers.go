@@ -331,7 +331,6 @@ func HandleCreateConversation(w http.ResponseWriter, r *http.Request) {
 		ID:           uuid.NewString(),
 		Participants: participants,
 	}
-
 	if err := db.CreateConversation(newConversation); err != nil {
 		http.Error(w, "Failed to create conversation", http.StatusInternalServerError)
 	}
