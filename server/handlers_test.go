@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/joemafrici/argo/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -315,4 +316,142 @@ func TestHandleCreateConversation(t *testing.T) {
 		t.Errorf("expected status %v; got %v", http.StatusBadRequest, result.StatusCode)
 	}
 
+}
+
+// ***********************************************
+func TestHandleGetUserConversations(t *testing.T) {
+	testDB, cleanup := setupTestDB(t)
+	defer cleanup()
+
+	testUsers := []User{
+		{Username: "user1", PublicKey: "publicKey1"},
+		{Username: "user2", PublicKey: "publicKey2"},
+		{Username: "user3", PublicKey: "publicKey3"},
+	}
+
+	ctx := context.TODO()
+	usersColl := testDB.client.Database(testDB.name).Collection("users")
+	for _, user := range testUsers {
+		_, err := usersColl.InsertOne(ctx, user)
+		if err != nil {
+			t.Errorf("Failed to insert user into database: %v", err)
+		}
+	}
+
+	testConversations := []Conversation{
+		{
+			ID: uuid.New().String(),
+			Participants: map[string]Participant{
+				"user1": {Username: "user1", PublicKey: "publicKey1"},
+				"user2": {Username: "user2", PublicKey: "publicKey2"},
+			},
+		},
+		{
+			ID: uuid.New().String(),
+			Participants: map[string]Participant{
+				"user1": {Username: "user1", PublicKey: "publicKey1"},
+				"user3": {Username: "user3", PublicKey: "publicKey3"},
+			},
+		},
+	}
+
+	conversationsColl := testDB.client.Database(testDB.name).Collection("conversations")
+	for _, conv := range testConversations {
+		_, err := conversationsColl.InsertOne(ctx, conv)
+		if err != nil {
+			t.Errorf("Failed to insert conversation into database: %v", err)
+		}
+	}
+
+	request, _ := http.NewRequest("GET", "/api/conversations", nil)
+	responseRecorder := httptest.NewRecorder()
+
+	ctx = context.WithValue(request.Context(), "username", "user1")
+	request = request.WithContext(ctx)
+
+	HandleGetUserConversations(responseRecorder, request)
+
+	result := responseRecorder.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Errorf("expected status %v; got %v", http.StatusOK, result.StatusCode)
+	}
+
+	var conversationsResponse []Conversation
+	err := json.NewDecoder(responseRecorder.Body).Decode(&conversationsResponse)
+	if err != nil {
+		t.Errorf("Failed to decode response body: %v", err)
+	}
+
+	numConversations := len(conversationsResponse)
+	if numConversations != 2 {
+		t.Errorf("Incorrect number of conversations returned. Got %v want 2", numConversations)
+	}
+
+	for _, testConv := range testConversations {
+		found := false
+		for _, respConv := range conversationsResponse {
+			if respConv.ID == testConv.ID {
+				found = true
+				if len(respConv.Participants) != len(testConv.Participants) {
+					t.Errorf("Incorrect number of participants in conversation: %s got %v want %v", respConv.ID, len(respConv.Participants), len(testConv.Participants))
+				}
+				break
+			}
+		}
+		if !found {
+			t.Errorf("Conversation %s not found in response", testConv.ID)
+		}
+	}
+
+	/////////////////////////////////////////////////
+	// test with user that has no conversations
+	/////////////////////////////////////////////////
+
+	request, _ = http.NewRequest("GET", "/api/conversations", nil)
+	responseRecorder = httptest.NewRecorder()
+
+	ctx = context.WithValue(request.Context(), "username", "user2")
+	request = request.WithContext(ctx)
+
+	HandleGetUserConversations(responseRecorder, request)
+
+	result = responseRecorder.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Errorf("expected status %v; got %v", http.StatusOK, result.StatusCode)
+	}
+
+	err = json.NewDecoder(responseRecorder.Body).Decode(&conversationsResponse)
+	if err != nil {
+		t.Fatalf("Failed to decode response body: %v", err)
+	}
+
+	if len(conversationsResponse) != 1 {
+		t.Errorf("Incorrect number of conversation responses: got %v want %v", len(conversationsResponse), 1)
+	}
+
+	/////////////////////////////////////////////////
+	// test with user that has no conversations
+	/////////////////////////////////////////////////
+
+	request, _ = http.NewRequest("GET", "/api/conversations", nil)
+	responseRecorder = httptest.NewRecorder()
+
+	ctx = context.WithValue(request.Context(), "username", "user4")
+	request = request.WithContext(ctx)
+
+	HandleGetUserConversations(responseRecorder, request)
+
+	result = responseRecorder.Result()
+	if result.StatusCode != http.StatusOK {
+		t.Errorf("expected status %v; got %v", http.StatusOK, result.StatusCode)
+	}
+
+	err = json.NewDecoder(responseRecorder.Body).Decode(&conversationsResponse)
+	if err != nil {
+		t.Fatalf("Failed to decode response body: %v", err)
+	}
+
+	if len(conversationsResponse) != 0 {
+		t.Errorf("Incorrect number of conversation responses: got %v want %v", len(conversationsResponse), 0)
+	}
 }
