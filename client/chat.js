@@ -1,5 +1,4 @@
 import { Conversation } from './conversation.js';
-import * as encrypt from './encrypt.js';
 
 let socket;
 let conversations = new Map();
@@ -88,7 +87,6 @@ export function initChat(router) {
       for (let convData of fetchedConversations) {
         let conversation = await Conversation.fromExisting(convData);
 
-        //await conversation.initializeSymmetricKey();
         conversations.set(convData.ID, conversation);
       }
 
@@ -144,8 +142,6 @@ export function initChat(router) {
   // ***********************************************
   function handleConversationUpdate(updatedConversation) {
     wsStatus();
-    // WARN: this needs to be updated too.. can use the index directly
-    // instead of findIndex
     const conversationIndex = conversations.findIndex(
       conversation => conversation.ID === updatedConversation.ID
     );
@@ -170,7 +166,6 @@ export function initChat(router) {
         participants: [encryptedMessage.From, encryptedMessage.To]
       });
       conversations.set(conversation.id, conversation);
-      updateConversationList();
     }
 
     const decryptedContent = await conversation.decryptMessage(encryptedMessage.Content);
@@ -235,8 +230,6 @@ export function initChat(router) {
   }
   // ***********************************************
   function handleMessageInputKeyDown(event) {
-    // TODO: changed from enter -> Enter
-    // see if that makes event fire
     if (event.key === 'Enter') {
       handleSendMessage();
     }
@@ -269,24 +262,3 @@ export function initChat(router) {
     }
   }
 }
-
-// ***********************************************
-function switchConversation(conversationId) {
-  const conversation = conversations.get(conversationId);
-  if (conversation) {
-    currentConversationId = conversationId;
-    conversation.renderMessages(messageList);
-  }
-}
-// ***********************************************
-function updateActiveConversation(conversation) {
-  // Clear the existing message list
-  messageList.innerHTML = '';
-
-  // Update the message list with the messages of the selected conversation
-  updateMessageList(conversation.Messages);
-
-  // Clear the message input
-  messageInput.value = '';
-}
-
