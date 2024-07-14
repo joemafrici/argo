@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/golang-jwt/jwt"
@@ -33,9 +34,12 @@ func main() {
 
 	log.Println("connecting to database")
 	//cs := "mongodb://localhost:27017"
-	cs := "mongodb://mongo:27017/argodb"
+	mongoURI := os.Getenv("MONGODB_URI")
+	if mongoURI == "" {
+		mongoURI = "mongodb://mongo:27017/argodb"
+	}
 	var err error
-	db, err = NewDBClient(cs, dbname)
+	db, err = NewDBClient(mongoURI, dbname)
 	if err != nil {
 		log.Fatal("Failed to connect to database", err)
 	}
