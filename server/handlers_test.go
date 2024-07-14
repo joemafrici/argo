@@ -23,7 +23,7 @@ func setupTestDB(t *testing.T) (*DBClient, func()) {
 	dbName := "testdb_" + time.Now().Format("2006012150405")
 
 	ctx := context.TODO()
-	opts := options.Client().ApplyURI("mongodb://localhost:27017")
+	opts := options.Client().ApplyURI("mongodb://mongo:27017")
 	client, err := mongo.Connect(ctx, opts)
 	if err != nil {
 		t.Fatalf("Failed to connect to test database: %v", err)
