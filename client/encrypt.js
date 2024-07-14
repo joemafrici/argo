@@ -154,7 +154,7 @@ export async function sendKeys(publicKey, encryptedPrivateKey) {
   if (!token) {
     throw new Error('token not found');
   }
-  const response = await fetch(`http://localhost:3001/api/keys`, {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/keys`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -179,7 +179,7 @@ export async function sendSalt(salt) {
     throw new Error('Failed to convert salt to base64: ' + err);
   }
 
-  const response = await fetch('http://localhost:3001/api/salt', {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/salt`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

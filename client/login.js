@@ -5,8 +5,7 @@ export async function createLoginHandler(router) {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     try {
-      //http://localhost:3001/api/login
-      const response = await fetch('http://localhost:3001/api/login', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -56,7 +55,7 @@ export async function createRegisterHandler(router) {
         const publicKeyArrayBuffer = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
 
         const publicKey = encrypt.arrayBufferToBase64(publicKeyArrayBuffer);
-        fetch('http://localhost:3001/api/register', {
+        fetch(`${import.meta.env.VITE_API_URL}/api/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

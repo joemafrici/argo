@@ -67,7 +67,7 @@ export function initChat(router) {
         throw new Error('No token found');
       }
 
-      const response = await fetch('http://localhost:3001/api/conversations', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/conversations`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
