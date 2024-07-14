@@ -32,7 +32,8 @@ func main() {
 	}
 
 	log.Println("connecting to database")
-	cs := "mongodb://localhost:27017"
+	//cs := "mongodb://localhost:27017"
+	cs := "mongodb://mongo:27017/argodb"
 	var err error
 	db, err = NewDBClient(cs, dbname)
 	if err != nil {
@@ -41,7 +42,7 @@ func main() {
 	defer db.Close()
 
 	mux := http.NewServeMux()
-	port := ":3001"
+	port := "0.0.0.0:3001"
 	mux.Handle("/ws", loggingMiddleware(http.HandlerFunc(HandleWebSocket)))
 	mux.Handle("/api/register", loggingMiddleware(http.HandlerFunc(HandleRegister)))
 	mux.Handle("/api/login", loggingMiddleware(http.HandlerFunc(HandleLogin)))

@@ -1,0 +1,29 @@
+services:
+  client:
+    build:
+      target: prod
+    volumes:
+      - /app/node_modules
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=http://localhost:3001
+
+  server:
+    build:
+      target: prod
+    volumes:
+      - /app/tmp
+    ports:
+      - "3001:3001"
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/argodb
+
+  mongo:
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_prod_data:/data/db
+
+volumes:
+  mongodb_prod_data:
