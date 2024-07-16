@@ -40,7 +40,7 @@ func HandleDatabaseError(err error) {
 			}
 		}
 	} else {
-		log.Println("Unknown error:", err)
+		log.Println("mongodb error:", err)
 	}
 }
 

@@ -66,7 +66,7 @@ export function initChat(router) {
         throw new Error('No token found');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/conversations`, {
+      const response = await fetch('http://localhost:3001/api/conversations', {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -250,6 +250,10 @@ export function initChat(router) {
   }
   // ***********************************************
   function handleLogoutPress() {
+    if (socket) {
+      socket.close();
+      socket = null;
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('username');
     conversations = new Map();

@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/joemafrici/argo/utils"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -459,5 +461,64 @@ func TestHandleGetUserConversations(t *testing.T) {
 
 	if len(conversationsResponse) != 0 {
 		t.Errorf("Incorrect number of conversation responses: got %v want %v", len(conversationsResponse), 0)
+	}
+}
+
+// ***********************************************
+func TestHandleWebSocket(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(HandleWebSocket))
+	defer server.Close()
+
+	url := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	ws, _, err := websocket.DefaultDialer.Dial(url, nil)
+	if err != nil {
+		t.Fatalf("Could not open a websocket connection on %s %v", url, err)
+	}
+	defer ws.Close()
+
+	testUsername := "testuser"
+	token, err := utils.NewTokenString(testUsername)
+	if err != nil {
+		t.Fatalf("Could not generate test token: %v", err)
+	}
+
+	authMessage := struct {
+		Token string `json:"token"`
+	}{Token: token}
+
+	err = ws.WriteJSON(authMessage)
+	if err != nil {
+		t.Fatalf("Could not send auth message: %v", err)
+	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	clientsMu.RLock()
+	_, exists := clients[testUsername]
+	clientsMu.RUnlock()
+	if !exists {
+		t.Errorf("client connection was not stored for user: %s", testUsername)
+	}
+
+	testMessage := Message{
+		ConvID:  "test-conv-id",
+		To:      "recipient",
+		From:    testUsername,
+		Content: "Hello, World!",
+	}
+	err = ws.WriteJSON(testMessage)
+	if err != nil {
+		t.Fatalf("Could not send test message: %v", err)
+	}
+
+	ws.Close()
+	time.Sleep(100 * time.Millisecond)
+
+	clientsMu.RLock()
+	_, stillExists := clients[testUsername]
+	clientsMu.RUnlock()
+	if stillExists {
+		t.Errorf("client connection was not removed after websocket closed for user: %s", testUsername)
 	}
 }

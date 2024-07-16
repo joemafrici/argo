@@ -47,6 +47,7 @@ FROM oraclelinux:8-slim AS prod
 WORKDIR /root/
 
 COPY --from=build /app/main .
+COPY --from=build /app/.env .
 
 EXPOSE 3001
 
