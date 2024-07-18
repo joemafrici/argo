@@ -6,8 +6,13 @@ services:
       - /app/node_modules
     ports:
       - "80:80"
+      - "443:443"
     environment:
       - VITE_API_URL=http://localhost:3001
+      - NGINX_SERVER_NAME=gojoe.dev
+    secrets:
+      - cloudflare_cert
+      - cloudflare_key
 
   server:
     build:
@@ -27,3 +32,9 @@ services:
 
 volumes:
   mongodb_prod_data:
+
+secrets:
+  cloudflare_cert:
+    file: ./cloudflare.crt
+  cloudflare_key:
+    file: ./cloudflare.key
