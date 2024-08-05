@@ -8,7 +8,7 @@ FROM oraclelinux:8 AS build
 #RUN dnf install -y oracle-golang-release-el8 && \
 #    dnf install -y golang && \
 #    dnf clean all
-RUN dnf install go-toolset
+RUN dnf install -y go-toolset && dnf clean all
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -25,8 +25,12 @@ FROM oraclelinux:8 AS dev
 RUN dnf install go-toolset
 WORKDIR /app
 
-RUN go install github.com/githubnemo/CompileDaemon@latest
+RUN dnf install -y go-toolset && \
+    go install github.com/githubnemo/CompileDaemon@latest && \
+    dnf clean all
+
 ENV PATH="/root/go/bin:${PATH}"
+WORKDIR /app
 
 COPY --from=build /app/go.mod /app/go.sum ./
 RUN go mod download
@@ -35,7 +39,7 @@ COPY . .
 
 EXPOSE 3001
 
-CMD CompileDaemon -log-prefix=false -build="go build -o main" -command="./main"
+CMD ["CompileDaemon", "-log-prefix=false", "-build=go build -o main", "-command=./main"]
 
 # Production stage
 FROM oraclelinux:8-slim AS prod
