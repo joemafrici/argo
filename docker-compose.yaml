@@ -12,8 +12,6 @@ services:
       - VITE_API_URL=http://localhost:3001
     networks:
       - app-network
-    restart:
-      - unless-stopped
 
   server:
     build:
@@ -27,8 +25,6 @@ services:
       - app-network
     depends_on:
       - mongo
-    restart:
-      - unless-stopped
 
   mongo:
     image: mongo:latest
@@ -38,8 +34,6 @@ services:
       - "27017:27017"
     networks:
       - app-network
-    restart:
-      - unless-stopped
 
 networks:
   app-network:

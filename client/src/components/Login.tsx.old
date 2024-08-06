@@ -1,0 +1,84 @@
+import React, { useState } from "react"
+import * as encrypt from '../utils/encrypt.ts';
+
+interface LoginProps {
+	onLogin: (token: string) => void;
+}
+interface LoginFormData {
+	username: string;
+	password: string;
+}
+
+const Login: React.FC<LoginProps> = ({ onLogin }) => {
+	const [formData, setFormData] = useState<LoginFormData>({
+		username: '',
+		password: '',
+	});
+	const [error, setError] = useState<string | null>(null);
+
+	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const { name, value } = e.target;
+		setFormData(prevState => ({
+			...prevState,
+			[name]: value,
+		}));
+	};
+
+	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		setError(null);
+
+		try {
+			console.log('sending request... formData is:', formData);
+			const response = await fetch('http://localhost:3001/api/login', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ Username: formData.username, Password: formData.password }),
+			});
+
+			const data = await response.json();
+
+			if (data.token) {
+				localStorage.setItem('token', data.token);
+				localStorage.setItem('username', formData.username);
+				localStorage.setItem('saltBase64', data.keys.saltBase64);
+				const salt = encrypt.base64ToArrayBuffer(data.keys.saltBase64);
+				const derivedKey = await encrypt.generateDerivedKey(formData.password, salt);
+				await encrypt.storeDerivedKey(derivedKey);
+				localStorage.setItem('publicKey', data.keys.public);
+				localStorage.setItem('privateKey', data.keys.encryptedPrivate);
+				onLogin(data.token);
+
+				// TODO: decide how to navigate
+				// router.navigate('/chat');
+			} else {
+				console.error('Login failed');
+			}
+		} catch (err) {
+			setError('Invalid username or password');
+			console.error('Login error:', err);
+		}
+	};
+
+	return (
+		<>
+			<h2>Login</h2>
+			{error && <p className="error">{error}</p>}
+			<form onSubmit={handleSubmit}>
+				<input
+					type="text" name="username" value={formData.username} placeholder="username"
+					onChange={handleChange} required
+				/>
+				<input
+					type="text" name="password" value={formData.password} placeholder="password"
+					onChange={handleChange} required
+				/>
+				<button type="submit" name="submit">Login</button>
+			</form>
+		</>
+	)
+}
+
+export default Login;
