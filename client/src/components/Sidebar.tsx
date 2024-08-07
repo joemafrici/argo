@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Conversation } from '../sampleData';
 
 interface SidebarProps {
@@ -8,6 +9,11 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ conversations, onSelect, selectedId }) => {
+	const navigate = useNavigate();
+	const handleLogoutClick = () => {
+		navigate('/login');
+	};
+
 	return (
 		<div className='sidebar'>
 			<h2>Conversations</h2>
@@ -23,6 +29,7 @@ const Sidebar: React.FC<SidebarProps> = ({ conversations, onSelect, selectedId }
 					</li>
 				))}
 			</ul>
+			<button className='logout-button' onClick={() => handleLogoutClick()}>Logout</button>
 		</div>
 	);
 };

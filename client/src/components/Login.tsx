@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
+	const [isLoading, setIsLoading] = useState(false);
 	const [isLogin, setIsLogin] = useState(true);
 	const [username, setUsername] = useState('');
 	const [password, setPassword] = useState('');
@@ -12,16 +13,28 @@ const Login: React.FC = () => {
 		e.preventDefault();
 		setError('');
 
-		if (username && password) {
+		try {
+			if (!(username && password)) {
+				setError('Enter username and password');
+			}
+
+			setIsLoading(true);
+			// const response = await fetch();
+			// const loginResponse = (await response.json()) as LoginResponse
 			await new Promise(resolve => setTimeout(resolve, 1000));
 
 			localStorage.setItem('token', 'dummy_token');
 
 			navigate('/home');
-		} else {
-			setError('Enter username and password');
+		} catch (e: any) {
+			setError(e)
+		} finally {
+			setIsLoading(false);
 		}
 	}
+
+	if (isLoading) return (<div>Loading...</div>)
+	if (error) return (<div>Something went horribly wrong!</div>)
 
 	return (
 		<div className='login-container'>
