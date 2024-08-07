@@ -1,6 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { base64ToArrayBuffer, KeyManager } from '../utils/encrypt';
 
+interface LoginResponse {
+	token: string,
+	keys: {
+		public: string,
+		encryptedPrivate: string,
+		saltBase64: string
+	};
+}
 const Login: React.FC = () => {
 	const [isLoading, setIsLoading] = useState(false);
 	const [isLogin, setIsLogin] = useState(true);
@@ -19,13 +28,31 @@ const Login: React.FC = () => {
 			}
 
 			setIsLoading(true);
-			// const response = await fetch();
-			// const loginResponse = (await response.json()) as LoginResponse
-			await new Promise(resolve => setTimeout(resolve, 1000));
-
-			localStorage.setItem('token', 'dummy_token');
+			const response = await fetch('http://localhost:3001/api/login', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ Username: username, Password: password }),
+			});
+			const loginResponse = (await response.json()) as LoginResponse
+			console.log(loginResponse);
+			if (loginResponse.token) {
+				localStorage.setItem('token', loginResponse.token);
+				localStorage.setItem('username', username);
+				localStorage.setItem('saltBase64', loginResponse.keys.saltBase64);
+				const salt = base64ToArrayBuffer(loginResponse.keys.saltBase64);
+				const keyManager = KeyManager.getInstance();
+				const derivedKey = await keyManager.deriveKey(password, salt);
+				await keyManager.storeDerivedKey(derivedKey);
+				localStorage.setItem('publicKey', loginResponse.keys.public);
+				localStorage.setItem('privateKey', loginResponse.keys.encryptedPrivate);
+			} else {
+				throw new Error('token is not valid');
+			}
 
 			navigate('/home');
+
 		} catch (e: any) {
 			setError(e)
 		} finally {
