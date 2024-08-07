@@ -11,10 +11,12 @@ const Conversation: React.FC<ConversationProps> = ({ conversation, onSendMessage
 	const handleSendMessage = () => {
 		if (messageInput.trim() === '') return;
 		const newMessage: Message = {
-			id: String(Date.now()),
-			sender: 'joe',
-			content: messageInput,
-			timestamp: new Date().toISOString(),
+			ConvId: 'fix this',
+			Id: String(Date.now()),
+			From: 'joe',
+			To: 'socrates',
+			Content: messageInput,
+			Timestamp: new Date().toISOString(),
 		}
 		onSendMessage(newMessage);
 		setMessageInput('');
@@ -28,15 +30,15 @@ const Conversation: React.FC<ConversationProps> = ({ conversation, onSendMessage
 
 	return (
 		<div className='conversation'>
-			<h2>{conversation.name}</h2>
+			<h2>{conversation.ID}</h2>
 			<div className='messages'>
-				{conversation.messages.map((msg) => (
+				{conversation.Messages.map((msg) => (
 					<div
-						key={msg.id}
-						className={`message ${msg.sender === 'You' ? 'sent' : 'received'}`}
+						key={msg.ID}
+						className={`message ${msg.From === 'You' ? 'sent' : 'received'}`}
 					>
-						<div className='message-content'>{msg.content}</div>
-						<div className='message-timestamp'>{new Date(msg.timestamp).toLocaleTimeString()}</div>
+						<div className='message-content'>{msg.Content}</div>
+						<div className='message-timestamp'>{new Date(msg.Timestamp).toLocaleTimeString()}</div>
 					</div>
 				))}
 			</div>

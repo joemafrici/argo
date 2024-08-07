@@ -20,12 +20,12 @@ const Sidebar: React.FC<SidebarProps> = ({ conversations, onSelect, selectedId }
 			<ul>
 				{conversations.map((conv) => (
 					<li
-						key={conv.id}
-						onClick={() => onSelect(conv.id)}
-						className={conv.id === selectedId ? 'selected ' : ''}
+						key={conv.ID}
+						onClick={() => onSelect(conv.ID)}
+						className={conv.ID === selectedId ? 'selected ' : ''}
 					>
-						<div className='conversation-name'>{conv.name}</div>
-						<div className='last-message'>{conv.lastMessage}</div>
+						<div className='conversation-name'>{conv.ID}</div>
+						<div className='last-message'>{conv.LastMessage}</div>
 					</li>
 				))}
 			</ul>
