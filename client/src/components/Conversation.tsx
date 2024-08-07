@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { Message, Conversation as ConversationType } from '../sampleData';
 interface ConversationProps {
 	conversation: ConversationType;
+	onSendMessage: (message: Message) => void;
 }
 
-const Conversation: React.FC<ConversationProps> = ({ conversation: initialConversation }) => {
-	const [messages, setMessages] = useState<Message[]>(initialConversation.messages);
+const Conversation: React.FC<ConversationProps> = ({ conversation, onSendMessage }) => {
 	const [messageInput, setMessageInput] = useState('');
 
 	const handleSendMessage = () => {
-		console.log('in handleSendMessage');
 		if (messageInput.trim() === '') return;
 		const newMessage: Message = {
 			id: String(Date.now()),
@@ -17,12 +16,11 @@ const Conversation: React.FC<ConversationProps> = ({ conversation: initialConver
 			content: messageInput,
 			timestamp: new Date().toISOString(),
 		}
-		setMessages(prevMessages => [...prevMessages, newMessage]);
+		onSendMessage(newMessage);
 		setMessageInput('');
-		console.log('message added to conversation');
 	};
 
-	const handleEnterKeyUp = (e) => {
+	const handleEnterKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
 		if (e.key === 'Enter') {
 			handleSendMessage();
 		}
@@ -30,9 +28,9 @@ const Conversation: React.FC<ConversationProps> = ({ conversation: initialConver
 
 	return (
 		<div className='conversation'>
-			<h2>{initialConversation.name}</h2>
+			<h2>{conversation.name}</h2>
 			<div className='messages'>
-				{messages.map((msg) => (
+				{conversation.messages.map((msg) => (
 					<div
 						key={msg.id}
 						className={`message ${msg.sender === 'You' ? 'sent' : 'received'}`}
@@ -48,7 +46,7 @@ const Conversation: React.FC<ConversationProps> = ({ conversation: initialConver
 					value={messageInput}
 					placeholder='Enter message...'
 					onChange={(e) => setMessageInput(e.target.value)}
-					onKeyUp={(e) => handleEnterKeyUp(e)}
+					onKeyUp={handleEnterKeyUp}
 				/>
 				<button onClick={handleSendMessage}>Send</button>
 			</div>

@@ -19,12 +19,10 @@ const router = createBrowserRouter([
       {
         path: 'home',
         element: <Home />,
-        children: [
-          {
-            path: ':conversationId',
-            //element: <Conversation />,
-          },
-        ],
+      },
+      {
+        path: 'home/:conversationId',
+        element: <Home />,
       },
       {
         path: '/',
