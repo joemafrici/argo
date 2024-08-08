@@ -1,9 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useConversationContext } from '../contexts/ConversationContext';
 
 const Conversation: React.FC = () => {
 	const { selectedConversation } = useConversationContext();
 	const [messageInput, setMessageInput] = useState('');
+
+	const currentUsername = localStorage.getItem('username');
+
+	const otherParticipant = useMemo(() => {
+		if (!selectedConversation || !currentUsername) return '';
+		const otherUsername = Object.keys(selectedConversation.Participants)
+			.find(username => username !== currentUsername);
+		return otherUsername || 'Unknown user';
+	}, [selectedConversation, currentUsername]);
 
 	const handleSendMessage = () => {
 		if (messageInput.trim() === '') return;
@@ -15,12 +24,12 @@ const Conversation: React.FC = () => {
 
 	return (
 		<div className='conversation'>
-			<h2>{selectedConversation.ID}</h2>
+			<h2>{otherParticipant}</h2>
 			<div className='messages'>
 				{selectedConversation.Messages.map((msg) => (
 					<div
 						key={msg.ID}
-						className={`message ${msg.From === localStorage.getItem('username') ? 'sent' : 'received'}`}
+						className={`message ${msg.From === currentUsername ? 'sent' : 'received'}`}
 					>
 						<div className='message-content'>{msg.Content}</div>
 						<div className='message-timestamp'>{new Date(msg.Timestamp).toLocaleTimeString()}</div>

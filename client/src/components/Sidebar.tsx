@@ -4,6 +4,7 @@ import { useConversationContext } from '../contexts/ConversationContext';
 
 const Sidebar: React.FC = () => {
 	const { conversations, selectConversation, selectedConversation } = useConversationContext();
+	const currentUsername = localStorage.getItem('username');
 	return (
 		<div className='sidebar'>
 			<h2>Conversations</h2>
@@ -14,7 +15,7 @@ const Sidebar: React.FC = () => {
 						onClick={() => selectConversation(conv.ID)}
 						className={conv.ID === selectedConversation?.ID ? 'selected ' : ''}
 					>
-						<div className='conversation-name'>{conv.ID}</div>
+						<div className='conversation-name'>{Object.keys(conv.Participants).find(username => username !== currentUsername)}</div>
 						<div className='last-message'>{conv.LastMessage}</div>
 					</li>
 				))}
