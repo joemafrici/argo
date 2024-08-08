@@ -116,6 +116,51 @@ export class KeyManager {
 		}
 		return null;
 	}
+
+	async encryptSymmetricKey(symmetricKey: ArrayBuffer, publicKey: CryptoKey): Promise<string> {
+		try {
+			const encryptedKey = await window.crypto.subtle.encrypt(
+				{
+					name: 'RSA-OAEP'
+				},
+				publicKey,
+				symmetricKey
+			);
+
+			return arrayBufferToBase64(encryptedKey);
+		} catch (err) {
+			console.error('Failed to encrypt symmetric key:', err);
+			throw new Error('Failed to encrypt symmetric key');
+		}
+	}
+	async decryptSymmetricKey(encryptedSymmetricKey: string, privateKey: CryptoKey): Promise<CryptoKey> {
+		try {
+			const encryptedKeyBuffer = base64ToArrayBuffer(encryptedSymmetricKey);
+			const decryptedKeyBuffer = await window.crypto.subtle.decrypt(
+				{
+					name: 'RSA-OAEP'
+				},
+				privateKey,
+				encryptedKeyBuffer
+			);
+
+			const symmetricKey = await window.crypto.subtle.importKey(
+				'raw',
+				decryptedKeyBuffer,
+				{
+					name: 'AES-GCM',
+					length: 256
+				},
+				true,   // extractable
+				['encrypt', 'decrypt']
+			);
+
+			return symmetricKey;
+		} catch (err) {
+			console.error('Failed to decrypt symmetric key:', err);
+			throw new Error('Failed to decrypt symmetric key');
+		}
+	}
 }
 
 export class Encryptor {

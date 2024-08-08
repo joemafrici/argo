@@ -23,4 +23,5 @@ export interface Conversation {
   Participants: { [key: string]: Participant };
   Messages: Message[];
   LastMessage: string;
+  SymmetricKey: string;
 }

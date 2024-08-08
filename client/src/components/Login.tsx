@@ -36,7 +36,6 @@ const Login: React.FC = () => {
 				body: JSON.stringify({ Username: username, Password: password }),
 			});
 			const loginResponse = (await response.json()) as LoginResponse
-			console.log(loginResponse);
 			if (loginResponse.token) {
 				localStorage.setItem('token', loginResponse.token);
 				localStorage.setItem('username', username);

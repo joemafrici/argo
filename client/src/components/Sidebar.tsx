@@ -1,19 +1,9 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Conversation } from '../sampleData';
+import { useConversationContext } from '../contexts/ConversationContext';
 
-interface SidebarProps {
-	conversations: Conversation[];
-	onSelect: (id: string) => void;
-	selectedId?: string;
-}
 
-const Sidebar: React.FC<SidebarProps> = ({ conversations, onSelect, selectedId }) => {
-	const navigate = useNavigate();
-	const handleLogoutClick = () => {
-		navigate('/login');
-	};
-
+const Sidebar: React.FC = () => {
+	const { conversations, selectConversation, selectedConversation } = useConversationContext();
 	return (
 		<div className='sidebar'>
 			<h2>Conversations</h2>
@@ -21,15 +11,14 @@ const Sidebar: React.FC<SidebarProps> = ({ conversations, onSelect, selectedId }
 				{conversations.map((conv) => (
 					<li
 						key={conv.ID}
-						onClick={() => onSelect(conv.ID)}
-						className={conv.ID === selectedId ? 'selected ' : ''}
+						onClick={() => selectConversation(conv.ID)}
+						className={conv.ID === selectedConversation?.ID ? 'selected ' : ''}
 					>
 						<div className='conversation-name'>{conv.ID}</div>
 						<div className='last-message'>{conv.LastMessage}</div>
 					</li>
 				))}
 			</ul>
-			<button className='logout-button' onClick={() => handleLogoutClick()}>Logout</button>
 		</div>
 	);
 };
