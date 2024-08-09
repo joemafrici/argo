@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useConversationContext } from '../contexts/ConversationContext';
 
 const Conversation: React.FC = () => {
-	const { selectedConversation } = useConversationContext();
+	const { selectedConversation, sendMessage, isWebSocketConnected } = useConversationContext();
 	const [messageInput, setMessageInput] = useState('');
 
 	const currentUsername = localStorage.getItem('username');
@@ -15,12 +15,13 @@ const Conversation: React.FC = () => {
 	}, [selectedConversation, currentUsername]);
 
 	const handleSendMessage = () => {
-		if (messageInput.trim() === '') return;
-		//sendMessage(selectedConversationId, messageInput);
+		if (messageInput.trim() === '' || !selectedConversation) return;
+		sendMessage(selectedConversation.ID, messageInput);
 		setMessageInput('');
 	};
 
 	if (!selectedConversation) return (<div>No conversation selected...</div>);
+	if (!isWebSocketConnected) return (<div>No conversation selected...</div>);
 
 	return (
 		<div className='conversation'>

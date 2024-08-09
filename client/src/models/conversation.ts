@@ -25,6 +25,19 @@ const decryptMessages = async (conversation: ConversationType): Promise<Message[
     }))
   );
 };
+export const decryptMessage = async (message: Message, conversation: ConversationType): Promise<Message> => {
+  const symmetricKey = await getSymmetricKey(conversation);
+  const encryptor = new Encryptor();
+
+  const decryptedContent = await encryptor.decryptMessage(message.Content, symmetricKey)
+  return { ...message, Content: decryptedContent };
+};
+
+export const encryptMessageContent = async (conversation: ConversationType, content: string): Promise<string> => {
+  const symmetricKey = await getSymmetricKey(conversation);
+  const encryptor = new Encryptor();
+  return await encryptor.encryptMessage(content, symmetricKey);
+};
 
 const getSymmetricKey = async (conversation: ConversationType): Promise<CryptoKey> => {
   const keyManager = KeyManager.getInstance();

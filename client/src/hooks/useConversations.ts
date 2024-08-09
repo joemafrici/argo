@@ -29,16 +29,14 @@ export const useConversations = () => {
         }
 
         const fetchedConversations = (await response.json()) as Conversation[];
+        console.log('fetched conversations', fetchedConversations);
         if (!fetchedConversations) {
           console.log('no conversations to fetch');
           return;
         }
-        console.log('received conversations');
-        console.log(fetchedConversations);
         const decryptedConversations = await Promise.all(
           fetchedConversations.map(ConversationUtils.createFromExisting)
         );
-        console.log('decrypted conversations');
         console.log(decryptedConversations);
         setConversations(decryptedConversations);
       } catch (e) {
@@ -51,5 +49,5 @@ export const useConversations = () => {
     fetchAndDecryptConversations();
   }, []);
 
-  return { conversations, isLoading, error };
+  return { conversations, isLoading, error, setConversations };
 };

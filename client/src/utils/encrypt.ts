@@ -188,6 +188,7 @@ export class Encryptor {
 	}
 
 	async decryptMessage(encryptedMessage: string, symmetricKey: CryptoKey): Promise<string> {
+		if (encryptedMessage === '') return '';
 		const encryptedData = base64ToArrayBuffer(encryptedMessage);
 		const iv = encryptedData.slice(0, 12);
 		const data = encryptedData.slice(12);
