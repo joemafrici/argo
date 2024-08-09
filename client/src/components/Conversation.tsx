@@ -1,9 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useConversationContext } from '../contexts/ConversationContext';
 
 const Conversation: React.FC = () => {
 	const { selectedConversation, sendMessage, isWebSocketConnected } = useConversationContext();
 	const [messageInput, setMessageInput] = useState('');
+	const bottom = useRef<HTMLDivElement>(null);
+
+	const scrollToBottom = () => {
+		bottom.current?.scrollIntoView({ behavior: "smooth" });
+	};
 
 	const currentUsername = localStorage.getItem('username');
 
@@ -19,6 +24,10 @@ const Conversation: React.FC = () => {
 		sendMessage(selectedConversation.ID, messageInput);
 		setMessageInput('');
 	};
+
+	useEffect(() => {
+		scrollToBottom();
+	}, [selectedConversation]);
 
 	if (!selectedConversation) return (<div>No conversation selected...</div>);
 	if (!isWebSocketConnected) return (<div>No conversation selected...</div>);
@@ -36,6 +45,7 @@ const Conversation: React.FC = () => {
 						<div className='message-timestamp'>{new Date(msg.Timestamp).toLocaleTimeString()}</div>
 					</div>
 				))}
+				<div ref={bottom}></div>
 			</div>
 			<div className='message-input'>
 				<input
