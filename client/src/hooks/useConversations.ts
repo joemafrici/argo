@@ -29,7 +29,6 @@ export const useConversations = () => {
         }
 
         const fetchedConversations = (await response.json()) as Conversation[];
-        console.log('fetched conversations', fetchedConversations);
         if (!fetchedConversations) {
           console.log('no conversations to fetch');
           return;
@@ -37,7 +36,6 @@ export const useConversations = () => {
         const decryptedConversations = await Promise.all(
           fetchedConversations.map(ConversationUtils.createFromExisting)
         );
-        console.log(decryptedConversations);
         setConversations(decryptedConversations);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Error fetching conversations');
