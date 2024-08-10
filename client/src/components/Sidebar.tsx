@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useConversationContext } from '../contexts/ConversationContext';
+import { useNavigate } from 'react-router-dom';
 
 
 const Sidebar: React.FC = () => {
 	const { conversations, selectConversation, selectedConversation, createNewConversation } = useConversationContext();
 	const [newParticipant, setNewParticipant] = useState('');
 
+	const navigate = useNavigate();
 	const currentUsername = localStorage.getItem('username');
 
 	const handleNewConversation = async () => {
@@ -14,6 +16,13 @@ const Sidebar: React.FC = () => {
 			setNewParticipant('');
 		}
 	};
+
+	const handleLogout = () => {
+		localStorage.removeItem('token');
+		localStorage.removeItem('username');
+		navigate('/login');
+	};
+
 	return (
 		<div className='sidebar'>
 			<h2>Conversations</h2>
@@ -37,6 +46,9 @@ const Sidebar: React.FC = () => {
 					placeholder='Enter username...'
 				/>
 				<button onClick={handleNewConversation}>New Conversation</button>
+			</div>
+			<div>
+				<button className='logout-button' onClick={handleLogout}>Logout</button>
 			</div>
 		</div>
 	);
