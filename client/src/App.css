@@ -197,3 +197,11 @@
 	border-radius: 4px;
 	cursor: pointer;
 }
+
+.new-conversation-button {
+	background-color: #00FF00;
+	color: white;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+}

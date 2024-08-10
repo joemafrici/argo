@@ -93,10 +93,14 @@ const decryptMessages = async (conversation: ConversationType): Promise<Message[
   );
 };
 export const decryptMessage = async (message: Message, conversation: ConversationType): Promise<Message> => {
+  console.log('in decryptMessage');
+  console.log('message is', message);
   const symmetricKey = await getSymmetricKey(conversation);
+  console.log('symmetricKey is ', symmetricKey);
   const encryptor = new Encryptor();
 
   const decryptedContent = await encryptor.decryptMessage(message.Content, symmetricKey)
+  console.log('decryptedContent is', decryptedContent);
   return { ...message, Content: decryptedContent };
 };
 

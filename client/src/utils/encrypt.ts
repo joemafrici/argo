@@ -218,13 +218,17 @@ export class Encryptor {
 		const iv = encryptedData.slice(0, 12);
 		const data = encryptedData.slice(12);
 
-		const decryptedData = await crypto.subtle.decrypt(
-			{ name: 'AES-GCM', iv: new Uint8Array(iv) },
-			symmetricKey,
-			data
-		);
+		try {
+			const decryptedData = await crypto.subtle.decrypt(
+				{ name: 'AES-GCM', iv: new Uint8Array(iv) },
+				symmetricKey,
+				data
+			);
+			return new TextDecoder().decode(decryptedData);
+		} catch (e) {
+			throw new Error(`failed to decrypt message: ${e}`);
+		}
 
-		return new TextDecoder().decode(decryptedData);
 	}
 
 	// ... (other methods)

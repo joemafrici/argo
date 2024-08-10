@@ -18,7 +18,7 @@ interface ConversationContextType {
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
 
 export function ConversationProvider({ children }: { children: React.ReactNode }) {
-  const { conversations, isLoading, error, setConversations } = useConversations();
+  const { conversations, isLoading, error, setConversations, fetchConversation } = useConversations();
   const { socket, isConnected, sendMessage: wsSendMessage } = useWebSocket('ws://localhost:3001/ws');
   const [selectedConversationId, setSelectedConversationId] = useState<string>('');
 
@@ -46,12 +46,17 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (socket) {
       socket.onmessage = async (event) => {
+        console.log('recieved websocket message');
         const data = JSON.parse(event.data);
         if (data) {
+          console.log('searching for conversation');
           const updatedConversation = conversations.find((c) => c.ID === data.ConvID);
           if (updatedConversation) {
             try {
+              console.log('found conversation');
+              console.log('conversation is', updatedConversation);
               const decryptedMessage = await ConversationUtils.decryptMessage(data, updatedConversation);
+              console.log('decrypted message is', decryptedMessage);
               setConversations(prevConversations =>
                 prevConversations.map(conv =>
                   conv.ID === data.ConvID ? { ...conv, Messages: [...conv.Messages, decryptedMessage] } : conv
@@ -59,6 +64,13 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
               );
             } catch (error) {
               console.error("Error decrypting message:", error);
+            }
+          } else {
+            try {
+              // create new conversation
+              await fetchConversation(data.ConvID);
+            } catch (e) {
+              console.error("Error decrypting message:", e);
             }
           }
         }

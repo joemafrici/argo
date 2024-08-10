@@ -45,7 +45,7 @@ const Sidebar: React.FC = () => {
 					onChange={(e) => setNewParticipant(e.target.value)}
 					placeholder='Enter username...'
 				/>
-				<button onClick={handleNewConversation}>New Conversation</button>
+				<button className='new-conversation-button' onClick={handleNewConversation}>New Conversation</button>
 			</div>
 			<div>
 				<button className='logout-button' onClick={handleLogout}>Logout</button>

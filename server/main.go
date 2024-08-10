@@ -52,7 +52,7 @@ func main() {
 	mux.Handle("/api/login", loggingMiddleware(http.HandlerFunc(HandleLogin)))
 	//mux.Handle("/api/logout", loggingMiddleware(http.HandlerFunc(HandleLogout)))
 	mux.Handle("/api/conversations", loggingMiddleware(protectedEndpoint(HandleGetUserConversations)))
-	//mux.Handle("/api/conversation", loggingMiddleware(protectedEndpoint(HandleGetUserConversation)))
+	mux.Handle("/api/conversation", loggingMiddleware(protectedEndpoint(HandleGetUserConversation)))
 	mux.Handle("/api/create-conversation", loggingMiddleware(protectedEndpoint(HandleCreateConversation)))
 	mux.Handle("/api/symmetric-key", loggingMiddleware(protectedEndpoint(HandleSymmetricKey)))
 	mux.Handle("/api/delete-message", loggingMiddleware(protectedEndpoint(HandleDeleteMessage)))
