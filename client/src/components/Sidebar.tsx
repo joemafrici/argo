@@ -9,7 +9,7 @@ const Sidebar: React.FC = () => {
 	const currentUsername = localStorage.getItem('username');
 
 	const handleNewConversation = async () => {
-		if (newParticipant && newParticipant != currentUsername) {
+		if (newParticipant && currentUsername && newParticipant != currentUsername) {
 			await createNewConversation(currentUsername, newParticipant);
 			setNewParticipant('');
 		}

@@ -52,10 +52,8 @@ export const createNewConversation = async (participants: string[]): Promise<Con
     const publicKey = await keyManager.createPublicCryptoKey(participant.PublicKey);
     const encryptedSymmetricKey = await keyManager.encryptSymmetricKey(symmetricKeyBuffer, publicKey);
     encryptedKeys[participant.Username] = encryptedSymmetricKey;
+    newConversation.Participants[username].EncryptedSymmetricKey = encryptedSymmetricKey;
   }
-
-  console.log('distributing encrypted keys');
-  console.log(encryptedKeys);
 
   // distributeEncryptedKeys
   try {
@@ -79,8 +77,6 @@ export const createNewConversation = async (participants: string[]): Promise<Con
     console.error('Error distributing encrypted keys:', err);
     throw err;
   }
-
-  console.log('new converation is', newConversation);
 
   return newConversation;
 };
@@ -119,7 +115,6 @@ const getSymmetricKey = async (conversation: ConversationType): Promise<CryptoKe
   if (!participant) throw new Error('participant not found in conversation object');
 
   const encryptedSymmetricKey = participant.EncryptedSymmetricKey;
-  console.log(encryptedSymmetricKey);
   if (!encryptedSymmetricKey) throw new Error('encrypted symmetric key not found in participant object');
 
   const derivedKey = await keyManager.retrieveDerivedKey();
