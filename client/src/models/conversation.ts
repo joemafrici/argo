@@ -9,10 +9,81 @@ export const createFromExisting = async (data: ConversationType): Promise<Conver
   };
 };
 
-//export const createNew = async (participants: string[]): Promise<Conversation> => {
-//  const keyManager = KeyManager.getInstance();
-//  const symmetricKey = keyManager.generateSymmetricKey();
-//};
+export const createNewConversation = async (participants: string[]): Promise<ConversationType> => {
+  const myUsername = localStorage.getItem('username')
+  const myPublicKey = localStorage.getItem('publicKey');
+
+  const request = {
+    Participants: participants.map(username => ({
+      Username: username,
+      PublicKey: username === myUsername ? myPublicKey : null
+    }))
+  };
+
+  const response = await fetch('http://localhost:3001/api/create-conversation', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${localStorage.getItem('token')}`
+    },
+    body: JSON.stringify(request)
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to create conversation');
+  }
+
+  const conversationWithKeys = (await response.json()) as ConversationType;
+  const newConversation: ConversationType = {
+    ID: conversationWithKeys.ID,
+    Participants: conversationWithKeys.Participants,
+    Messages: [],
+    LastMessage: '',
+    SymmetricKey: '',
+  };
+
+  // generateSymmetricKey
+  const keyManager = KeyManager.getInstance();
+  const symmetricKey = await keyManager.generateSymmetricKey();
+  const symmetricKeyBuffer = await window.crypto.subtle.exportKey('raw', symmetricKey);
+  const encryptedKeys: { [key: string]: string } = {};
+  for (const username in newConversation.Participants) {
+    const participant = newConversation.Participants[username];
+    const publicKey = await keyManager.createPublicCryptoKey(participant.PublicKey);
+    const encryptedSymmetricKey = await keyManager.encryptSymmetricKey(symmetricKeyBuffer, publicKey);
+    encryptedKeys[participant.Username] = encryptedSymmetricKey;
+  }
+
+  console.log('distributing encrypted keys');
+  console.log(encryptedKeys);
+
+  // distributeEncryptedKeys
+  try {
+    const response = await fetch(`http://localhost:3001/api/symmetric-key`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        ConversationId: newConversation.ID,
+        EncryptedKeys: encryptedKeys
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to distribute encrypted keys');
+    }
+
+  } catch (err) {
+    console.error('Error distributing encrypted keys:', err);
+    throw err;
+  }
+
+  console.log('new converation is', newConversation);
+
+  return newConversation;
+};
 
 const decryptMessages = async (conversation: ConversationType): Promise<Message[]> => {
   const symmetricKey = await getSymmetricKey(conversation);
@@ -48,6 +119,7 @@ const getSymmetricKey = async (conversation: ConversationType): Promise<CryptoKe
   if (!participant) throw new Error('participant not found in conversation object');
 
   const encryptedSymmetricKey = participant.EncryptedSymmetricKey;
+  console.log(encryptedSymmetricKey);
   if (!encryptedSymmetricKey) throw new Error('encrypted symmetric key not found in participant object');
 
   const derivedKey = await keyManager.retrieveDerivedKey();

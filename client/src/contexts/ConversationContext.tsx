@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useContext, createContext } from 'rea
 import { Conversation } from '../sampleData';
 import { useConversations } from '../hooks/useConversations';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { encryptMessageContent, decryptMessage } from '../models/conversation'
+import * as ConversationUtils from '../models/conversation'
 
 interface ConversationContextType {
   conversations: Conversation[];
@@ -12,6 +12,7 @@ interface ConversationContextType {
   selectConversation: (id: string) => void;
   sendMessage: (conversationId: string, content: string) => void;
   isWebSocketConnected: boolean;
+  createNewConversation: (currentUser: string, participant: string) => Promise<void>;
 }
 
 const ConversationContext = createContext<ConversationContextType | undefined>(undefined);
@@ -31,10 +32,16 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
       ConvID: conversationId,
       To: selectedConversation.Participants[Object.keys(selectedConversation.Participants).find(p => p != localStorage.getItem('username')) || '']?.Username || '',
       From: localStorage.getItem('username'),
-      Content: await encryptMessageContent(selectedConversation, content),
+      Content: await ConversationUtils.encryptMessageContent(selectedConversation, content),
     };
     wsSendMessage(message);
   }, [selectedConversation, wsSendMessage]);
+
+  const createNewConversation = useCallback(async (currentUser: string, participant: string) => {
+    const newConversation = await ConversationUtils.createNewConversation([currentUser, participant]);
+    setConversations(prevConversations => [...prevConversations, newConversation]);
+  }, [setConversations]);
+
 
   useEffect(() => {
     if (socket) {
@@ -44,7 +51,7 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
           const updatedConversation = conversations.find((c) => c.ID === data.ConvID);
           if (updatedConversation) {
             try {
-              const decryptedMessage = await decryptMessage(data, updatedConversation);
+              const decryptedMessage = await ConversationUtils.decryptMessage(data, updatedConversation);
               setConversations(prevConversations =>
                 prevConversations.map(conv =>
                   conv.ID === data.ConvID ? { ...conv, Messages: [...conv.Messages, decryptedMessage] } : conv
@@ -74,6 +81,7 @@ export function ConversationProvider({ children }: { children: React.ReactNode }
       selectConversation,
       sendMessage,
       isWebSocketConnected: isConnected,
+      createNewConversation,
     }}>
       {children}
     </ConversationContext.Provider>

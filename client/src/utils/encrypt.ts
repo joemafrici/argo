@@ -161,6 +161,31 @@ export class KeyManager {
 			throw new Error('Failed to decrypt symmetric key');
 		}
 	}
+
+	// Transforms keyData into CryptoKey object for use in Web Cryptogrophy API
+	async createPublicCryptoKey(keyData: string): Promise<CryptoKey> {
+		try {
+			const keyBuffer = base64ToArrayBuffer(keyData);
+			if (!keyBuffer) {
+				throw new Error("Failed to convert key data to ArrayBuffer");
+			}
+
+			const pubKey = await window.crypto.subtle.importKey(
+				'spki',
+				keyBuffer,
+				{
+					name: 'RSA-OAEP',
+					hash: 'SHA-256',
+				},
+				true,
+				['encrypt'],
+			);
+			return pubKey;
+		} catch (err) {
+			console.error('Failed to import public key:', err);
+			throw new Error('Failed to create public crypto key');
+		}
+	}
 }
 
 export class Encryptor {

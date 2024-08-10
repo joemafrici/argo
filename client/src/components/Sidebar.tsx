@@ -1,10 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useConversationContext } from '../contexts/ConversationContext';
 
 
 const Sidebar: React.FC = () => {
-	const { conversations, selectConversation, selectedConversation } = useConversationContext();
+	const { conversations, selectConversation, selectedConversation, createNewConversation } = useConversationContext();
+	const [newParticipant, setNewParticipant] = useState('');
+
 	const currentUsername = localStorage.getItem('username');
+
+	const handleNewConversation = async () => {
+		if (newParticipant && newParticipant != currentUsername) {
+			await createNewConversation(currentUsername, newParticipant);
+			setNewParticipant('');
+		}
+	};
 	return (
 		<div className='sidebar'>
 			<h2>Conversations</h2>
@@ -20,6 +29,15 @@ const Sidebar: React.FC = () => {
 					</li>
 				))}
 			</ul>
+			<div className='new-conversation'>
+				<input
+					type='text'
+					value={newParticipant}
+					onChange={(e) => setNewParticipant(e.target.value)}
+					placeholder='Enter username...'
+				/>
+				<button onClick={handleNewConversation}>New Conversation</button>
+			</div>
 		</div>
 	);
 };
