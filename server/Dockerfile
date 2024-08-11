@@ -1,58 +1,14 @@
-# syntax=docker/dockerfile:1
-
-# Build stage
-# TODO: change to 9
-FROM oraclelinux:8 AS build
-
-# Install Go
-#RUN dnf install -y oracle-golang-release-el8 && \
-#    dnf install -y golang && \
-#    dnf clean all
-RUN dnf install -y go-toolset && dnf clean all
+FROM golang:1.22 as builder
 WORKDIR /app
-
 COPY go.mod go.sum ./
 RUN go mod download
-
 COPY . .
-
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 
-# Development stage
-FROM oraclelinux:8 AS dev
-
-# Install Go and development tools
-RUN dnf install go-toolset
-WORKDIR /app
-
-RUN dnf install -y go-toolset && \
-    go install github.com/githubnemo/CompileDaemon@latest && \
-    dnf clean all
-
-ENV PATH="/root/go/bin:${PATH}"
-WORKDIR /app
-
-COPY --from=build /app/go.mod /app/go.sum ./
-RUN go mod download
-
-COPY . .
-
-EXPOSE 3001
-
-CMD ["CompileDaemon", "-log-prefix=false", "-build=go build -o main", "-command=./main"]
-
-# Production stage
-FROM oraclelinux:8-slim AS prod
-
-# Install any necessary runtime dependencies
-# For a Go binary, we might not need any, but you can add if required
-# RUN dnf install -y <any-required-packages> && dnf clean all
-
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
 WORKDIR /root/
-
-COPY --from=build /app/main .
-COPY --from=build /app/.env .
-
+COPY --from=builder /app/main .
+COPY .env .
 EXPOSE 3001
-
 CMD ["./main"]

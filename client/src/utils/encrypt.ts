@@ -189,11 +189,10 @@ export class KeyManager {
 }
 
 export class Encryptor {
-	private keyManager: KeyManager;
-
-	constructor() {
-		this.keyManager = KeyManager.getInstance();
-	}
+	//private keyManager: KeyManager;
+	//constructor() {
+	//	this.keyManager = KeyManager.getInstance();
+	//}
 
 	async encryptMessage(message: string, symmetricKey: CryptoKey): Promise<string> {
 		const iv = crypto.getRandomValues(new Uint8Array(12));
