@@ -19,7 +19,7 @@ const ConversationContext = createContext<ConversationContextType | undefined>(u
 
 export function ConversationProvider({ children }: { children: React.ReactNode }) {
   const { conversations, isLoading, error, setConversations, fetchConversation } = useConversations();
-  const { socket, isConnected, sendMessage: wsSendMessage } = useWebSocket('ws://localhost:3001/ws');
+  const { socket, isConnected, sendMessage: wsSendMessage } = useWebSocket(`ws://${window.location.host}/ws`);
   const [selectedConversationId, setSelectedConversationId] = useState<string>('');
 
   const selectConversation = (conversationId: string) => setSelectedConversationId(conversationId);

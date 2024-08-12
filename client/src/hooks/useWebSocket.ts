@@ -8,6 +8,7 @@ export const useWebSocket = (url: string) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    console.log('establishing websocket connection to', url);
     const ws = new WebSocket(url);
 
     ws.onopen = (() => {

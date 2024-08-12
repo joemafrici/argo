@@ -16,7 +16,7 @@ export const useConversations = () => {
           throw new Error('No token found');
         }
 
-        const response = await fetch('http://localhost:3001/api/conversations', {
+        const response = await fetch('/api/conversations', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -55,7 +55,7 @@ export const useConversations = () => {
         throw new Error('No token found');
       }
 
-      const response = await fetch(`http://localhost:3001/api/conversation?id=${convID}`, {
+      const response = await fetch(`/api/conversation?id=${convID}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

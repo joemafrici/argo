@@ -43,7 +43,7 @@ const Login: React.FC = () => {
 	}
 
 	const handleLogin = async () => {
-		const response = await fetch('http://server:3001/api/login', {
+		const response = await fetch('/api/login', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
@@ -77,7 +77,7 @@ const Login: React.FC = () => {
 			const publicKeyArrayBuffer = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
 
 			const publicKey = arrayBufferToBase64(publicKeyArrayBuffer);
-			fetch('http://localhost:3001/api/register', {
+			fetch('/api/register', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',

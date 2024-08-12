@@ -20,7 +20,7 @@ export const createNewConversation = async (participants: string[]): Promise<Con
     }))
   };
 
-  const response = await fetch('http://localhost:3001/api/create-conversation', {
+  const response = await fetch('/api/create-conversation', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -57,7 +57,7 @@ export const createNewConversation = async (participants: string[]): Promise<Con
 
   // distributeEncryptedKeys
   try {
-    const response = await fetch(`http://localhost:3001/api/symmetric-key`, {
+    const response = await fetch('/api/symmetric-key', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
