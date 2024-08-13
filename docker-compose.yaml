@@ -5,7 +5,7 @@ services:
       - "80:80"
     depends_on:
       - server
-      volumes:
+    volumes:
       - /etc/letsencrypt:/etc/letsencrypt:ro
 
   server:
