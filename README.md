@@ -11,4 +11,3 @@ It provides authentication with JSON Web Tokens.  Passwords are stored encrypted
 - Full end-to-end encrypted chat between two users
 - Account registration
 - Login on new device and still able to decrypt all conversation histories
-## Startup Guide
